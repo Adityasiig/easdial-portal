@@ -1,46 +1,34 @@
-import bcrypt from 'bcryptjs';
-import { config } from './config.js';
-import { logger } from './lib/logger.js';
-import { buildServer } from './server.js';
-import { InMemoryUserStore } from './services/userStore.js';
+import { config } from '../../config.js';
+import { logger } from '../../lib/logger.js';
+import type { PeeredgeClient } from './PeeredgeClient.js';
+import { MockPeeredgeClient } from './MockPeeredgeClient.js';
+import { RestPeeredgeClient } from './RestPeeredgeClient.js';
+import { PeeredgeSession } from './PeeredgeSession.js';
 
-/** Seed demo accounts in non-production so the portal is usable immediately. */
-async function seedDemo(store: InMemoryUserStore): Promise<void> {
-  if (config.isProd) return;
-  const password = await bcrypt.hash('EasDialDemo!2026', 12);
+let instance: PeeredgeClient | null = null;
 
-  await store.create({
-    email: 'carrier@easdial.com',
-    relationshipId: 'REL-1001',
-    brand: 'easdial',
-    role: 'carrier',
-    passwordHash: password,
-    status: 'active',
-  });
-  await store.create({
-    email: 'admin@easdial.com',
-    relationshipId: 'REL-ADMIN',
-    brand: 'easdial',
-    role: 'admin',
-    passwordHash: password,
-    status: 'active',
-  });
+/** Factory — selects the data source from config. Singleton per process. */
+export function getPeeredgeClient(): PeeredgeClient {
+  if (instance) return instance;
 
-  logger.info('Seeded demo users (dev only):');
-  logger.info('  carrier@easdial.com / EasDialDemo!2026  (relationship REL-1001)');
-  logger.info('  admin@easdial.com   / EasDialDemo!2026  (admin)');
+  if (config.PEEREDGE_SOURCE === 'rest') {
+    logger.info(`Peeredge data source: REST (live, auth=${config.PEEREDGE_AUTH_MODE})`);
+    const session = new PeeredgeSession({
+      mode: config.PEEREDGE_AUTH_MODE,
+      baseUrl: config.PEEREDGE_BASE_URL as string,
+      origin: config.PEEREDGE_ORIGIN,
+      sessionCookie: config.PEEREDGE_SESSION_COOKIE,
+      loginUrl: config.PEEREDGE_LOGIN_URL || undefined,
+      email: config.PEEREDGE_EMAIL,
+      password: config.PEEREDGE_PASSWORD,
+    });
+    instance = new RestPeeredgeClient(config.PEEREDGE_BASE_URL as string, session);
+  } else {
+    logger.info('Peeredge data source: MOCK (synthetic data)');
+    instance = new MockPeeredgeClient();
+  }
+  return instance;
 }
 
-async function main(): Promise<void> {
-  const store = new InMemoryUserStore();
-  await seedDemo(store);
-
-  const { app } = await buildServer(store);
-  await app.listen({ port: config.PORT, host: '0.0.0.0' });
-  logger.info(`EasDial portal API listening on :${config.PORT} (source=${config.PEEREDGE_SOURCE})`);
-}
-
-main().catch((err) => {
-  logger.error({ err }, 'Fatal startup error');
-  process.exit(1);
-});
+export type { PeeredgeClient } from './PeeredgeClient.js';
+export * from './types.js';
