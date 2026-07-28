@@ -22,11 +22,19 @@ services:
       NODE_ENV: production
       PORT: 4000
       DATABASE_URL: postgres://${POSTGRES_USER:-easdial}:${POSTGRES_PASSWORD:-easdial}@db:5432/${POSTGRES_DB:-easdial_portal}
-      JWT_SECRET: ${JWT_SECRET:-dev_only_change_me}
-      PEEREDGE_SOURCE: ${PEEREDGE_SOURCE:-mock}
-      PEEREDGE_BASE_URL: ${PEEREDGE_BASE_URL:-}
-      PEEREDGE_API_KEY: ${PEEREDGE_API_KEY:-}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in Coolify}
+      # Public URL of the FRONTEND — the backend only accepts CORS from this origin.
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+      PORTAL_BASE_URL: ${PORTAL_BASE_URL:-http://localhost:5173}
+      # Peeredge data source
+      PEEREDGE_SOURCE: ${PEEREDGE_SOURCE:-mock}
+      PEEREDGE_BASE_URL: ${PEEREDGE_BASE_URL:-https://api-dialphone.peeredge.com}
+      PEEREDGE_ORIGIN: ${PEEREDGE_ORIGIN:-https://carrier-dialphone.peeredge.com}
+      PEEREDGE_AUTH_MODE: ${PEEREDGE_AUTH_MODE:-cookie}
+      PEEREDGE_SESSION_COOKIE: ${PEEREDGE_SESSION_COOKIE:-}
+      PEEREDGE_LOGIN_URL: ${PEEREDGE_LOGIN_URL:-}
+      PEEREDGE_EMAIL: ${PEEREDGE_EMAIL:-}
+      PEEREDGE_PASSWORD: ${PEEREDGE_PASSWORD:-}
     ports:
       - "4000:4000"
     depends_on:
@@ -34,9 +42,12 @@ services:
         condition: service_healthy
 
   frontend:
-    build: ./frontend
-    environment:
-      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:4000}
+    build:
+      context: ./frontend
+      args:
+        # Vite bakes this at BUILD time, so it must be a build arg (not runtime env).
+        # Set it to the backend's PUBLIC URL in Coolify.
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:4000}
     ports:
       - "5173:80"
     depends_on:
