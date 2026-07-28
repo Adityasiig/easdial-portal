@@ -1,0 +1,97 @@
+/** Minimal typed API client. Token is held in memory (no localStorage). */
+
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:4000';
+
+export interface SessionUser {
+  id: string;
+  email: string;
+  relationshipId: string;
+  brand: string;
+  role: string;
+}
+
+export interface DashboardSummary {
+  relationshipId: string;
+  date: string;
+  dailyMinutes: number;
+  dailyAttempts: number;
+  dailyAttemptsTarget: number;
+  dailyPrv: number;
+  dailyPrvTarget: number;
+  activePorts: number;
+}
+
+export interface SeriesPoint {
+  ts: string;
+  value: number;
+}
+export interface NamedSeries {
+  label: string;
+  points: SeriesPoint[];
+}
+export interface OverviewSeries {
+  relationshipId: string;
+  direction: 'termination' | 'origination';
+  metric: 'minutes' | 'attempts';
+  granularityMinutes: number;
+  series: NamedSeries[];
+}
+
+export class ApiError extends Error {
+  constructor(
+    public status: number,
+    public code: string,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+let authToken: string | null = null;
+export function setToken(token: string | null): void {
+  authToken = token;
+}
+
+async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    ...init,
+    headers: {
+      'content-type': 'application/json',
+      ...(authToken ? { authorization: `Bearer ${authToken}` } : {}),
+      ...(init.headers ?? {}),
+    },
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = body?.error ?? {};
+    throw new ApiError(res.status, err.code ?? 'error', err.message ?? 'Request failed');
+  }
+  return body as T;
+}
+
+export const api = {
+  login: (email: string, password: string) =>
+    request<{ token: string; user: SessionUser }>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    }),
+
+  setPassword: (token: string, password: string) =>
+    request<{ ok: true }>('/auth/set-password', {
+      method: 'POST',
+      body: JSON.stringify({ token, password }),
+    }),
+
+  requestReset: (email: string) =>
+    request<{ ok: true }>('/auth/request-reset', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+
+  me: () => request<{ user: SessionUser }>('/auth/me'),
+
+  summary: () => request<DashboardSummary>('/metrics/summary'),
+
+  overview: (direction: 'termination' | 'origination', metric: 'minutes' | 'attempts') =>
+    request<OverviewSeries>(`/metrics/overview?direction=${direction}&metric=${metric}`),
+};

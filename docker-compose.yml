@@ -1,0 +1,46 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-easdial}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-easdial}
+      POSTGRES_DB: ${POSTGRES_DB:-easdial_portal}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-easdial}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgres://${POSTGRES_USER:-easdial}:${POSTGRES_PASSWORD:-easdial}@db:5432/${POSTGRES_DB:-easdial_portal}
+      JWT_SECRET: ${JWT_SECRET:-dev_only_change_me}
+      PEEREDGE_SOURCE: ${PEEREDGE_SOURCE:-mock}
+      PEEREDGE_BASE_URL: ${PEEREDGE_BASE_URL:-}
+      PEEREDGE_API_KEY: ${PEEREDGE_API_KEY:-}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+    ports:
+      - "4000:4000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    environment:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:4000}
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
