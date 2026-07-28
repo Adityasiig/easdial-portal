@@ -5,8 +5,10 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-easdial}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-easdial}
       POSTGRES_DB: ${POSTGRES_DB:-easdial_portal}
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+    # No host port publish — the backend reaches the DB via the internal "db"
+    # network alias. Publishing 5432 clashes on shared hosts (e.g. Coolify).
+    expose:
+      - "5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./db/migrations:/docker-entrypoint-initdb.d:ro
@@ -35,8 +37,9 @@ services:
       PEEREDGE_LOGIN_URL: ${PEEREDGE_LOGIN_URL:-}
       PEEREDGE_EMAIL: ${PEEREDGE_EMAIL:-}
       PEEREDGE_PASSWORD: ${PEEREDGE_PASSWORD:-}
-    ports:
-      - "4000:4000"
+    # Coolify's proxy routes the backend domain to this port internally.
+    expose:
+      - "4000"
     depends_on:
       db:
         condition: service_healthy
@@ -48,8 +51,9 @@ services:
         # Vite bakes this at BUILD time, so it must be a build arg (not runtime env).
         # Set it to the backend's PUBLIC URL in Coolify.
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:4000}
-    ports:
-      - "5173:80"
+    # Coolify's proxy routes the frontend domain to this port internally.
+    expose:
+      - "80"
     depends_on:
       - backend
 
