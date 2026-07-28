@@ -26,6 +26,13 @@ const schema = z.object({
 
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
   PORTAL_BASE_URL: z.string().default('http://localhost:5173'),
+
+  // First-user seeding. Always on in dev; in production only when SEED_DEMO=true.
+  // Lets you create an initial login on a fresh deploy without a database.
+  SEED_DEMO: z.enum(['true', 'false']).default('false'),
+  SEED_DEMO_EMAIL: z.string().email().default('carrier@easdial.com'),
+  SEED_DEMO_PASSWORD: z.string().min(8).default('EasDialDemo!2026'),
+  SEED_DEMO_RELATIONSHIP: z.string().default('REL-1001'),
 });
 
 const parsed = schema.safeParse(process.env);

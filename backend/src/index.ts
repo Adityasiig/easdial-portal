@@ -4,17 +4,24 @@ import { logger } from './lib/logger.js';
 import { buildServer } from './server.js';
 import { InMemoryUserStore } from './services/userStore.js';
 
-/** Seed demo accounts in non-production so the portal is usable immediately. */
+/**
+ * Seed an initial login so the portal is usable on a fresh deploy (the store is
+ * in-memory in Phase 1). Runs automatically in development, and in production
+ * only when SEED_DEMO=true. Credentials are env-overridable — set a real
+ * SEED_DEMO_PASSWORD in production; do not rely on the default.
+ */
 async function seedDemo(store: InMemoryUserStore): Promise<void> {
-  if (config.isProd) return;
-  const password = await bcrypt.hash('EasDialDemo!2026', 12);
+  const enabled = !config.isProd || config.SEED_DEMO === 'true';
+  if (!enabled) return;
+
+  const passwordHash = await bcrypt.hash(config.SEED_DEMO_PASSWORD, 12);
 
   await store.create({
-    email: 'carrier@easdial.com',
-    relationshipId: 'REL-1001',
+    email: config.SEED_DEMO_EMAIL,
+    relationshipId: config.SEED_DEMO_RELATIONSHIP,
     brand: 'easdial',
     role: 'carrier',
-    passwordHash: password,
+    passwordHash,
     status: 'active',
   });
   await store.create({
@@ -22,13 +29,14 @@ async function seedDemo(store: InMemoryUserStore): Promise<void> {
     relationshipId: 'REL-ADMIN',
     brand: 'easdial',
     role: 'admin',
-    passwordHash: password,
+    passwordHash,
     status: 'active',
   });
 
-  logger.info('Seeded demo users (dev only):');
-  logger.info('  carrier@easdial.com / EasDialDemo!2026  (relationship REL-1001)');
-  logger.info('  admin@easdial.com   / EasDialDemo!2026  (admin)');
+  logger.info(`Seeded login: ${config.SEED_DEMO_EMAIL} (carrier) + admin@easdial.com (admin)`);
+  if (config.isProd && config.SEED_DEMO_PASSWORD === 'EasDialDemo!2026') {
+    logger.warn('SEED_DEMO is using the DEFAULT password in production — set SEED_DEMO_PASSWORD.');
+  }
 }
 
 async function main(): Promise<void> {
