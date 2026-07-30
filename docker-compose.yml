@@ -27,16 +27,12 @@ services:
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in Coolify}
       # Public URL of the FRONTEND — the backend only accepts CORS from this origin.
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
-      PORTAL_BASE_URL: ${PORTAL_BASE_URL:-http://localhost:5173}
-      # Peeredge data source
+      # Peeredge data source. Pass-through auth: each user signs in with their own
+      # Peeredge credentials, so no Peeredge login is stored here.
       PEEREDGE_SOURCE: ${PEEREDGE_SOURCE:-mock}
       PEEREDGE_BASE_URL: ${PEEREDGE_BASE_URL:-https://api-dialphone.peeredge.com}
-      PEEREDGE_ORIGIN: ${PEEREDGE_ORIGIN:-https://carrier-dialphone.peeredge.com}
-      PEEREDGE_AUTH_MODE: ${PEEREDGE_AUTH_MODE:-cookie}
-      PEEREDGE_SESSION_COOKIE: ${PEEREDGE_SESSION_COOKIE:-}
-      PEEREDGE_LOGIN_URL: ${PEEREDGE_LOGIN_URL:-}
-      PEEREDGE_EMAIL: ${PEEREDGE_EMAIL:-}
-      PEEREDGE_PASSWORD: ${PEEREDGE_PASSWORD:-}
+      PEEREDGE_SLUG: ${PEEREDGE_SLUG:-dialphone}
+      PEEREDGE_LOGIN_PATH: ${PEEREDGE_LOGIN_PATH:-/api/v2/relationship/auth/login}
     # Coolify's proxy routes the backend domain to this port internally.
     expose:
       - "4000"
