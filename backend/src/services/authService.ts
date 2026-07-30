@@ -1,59 +1,34 @@
 import jwt from 'jsonwebtoken';
 import { config } from '../config.js';
-import { AppError, Unauthorized } from '../lib/errors.js';
-import { createPeeredgeClient } from '../adapters/peeredge/index.js';
-import type { Session, SessionStore } from './sessionStore.js';
+import { Unauthorized } from '../lib/errors.js';
+import type { Account, AccountStore, PublicAccount } from './accountStore.js';
+import { toPublic } from './accountStore.js';
 
-/**
- * Authentication by pass-through to Peeredge: the user signs in with their real
- * Peeredge carrier credentials, we verify them against Peeredge, and hold their
- * session server-side. The browser only ever receives an opaque EasDial JWT that
- * references the server-side session — never the Peeredge token or password.
- */
+/** Authentication against EasDial's own accounts (admin-managed). */
 export class AuthService {
-  constructor(private readonly sessions: SessionStore) {}
+  constructor(private readonly accounts: AccountStore) {}
 
-  /** Verify credentials against Peeredge and open a session. */
-  async login(email: string, password: string): Promise<{ token: string; user: Session['identity'] }> {
-    const client = createPeeredgeClient({ email: email.trim(), password });
+  async login(email: string, password: string): Promise<{ token: string; user: PublicAccount }> {
+    const account = this.accounts.findByEmail(email);
+    // Compare even when the account is missing, to avoid timing enumeration.
+    const ok = account ? await this.accounts.verifyPassword(account, password) : false;
+    if (!account || !ok) throw Unauthorized('Invalid email or password');
 
-    let identity: Session['identity'];
-    try {
-      identity = await client.whoami(); // performs the Peeredge login
-    } catch (err) {
-      // Wrong credentials → 401 for the user; genuine upstream faults surface as-is.
-      if (err instanceof AppError && err.statusCode === 401) {
-        throw Unauthorized('Invalid email or password');
-      }
-      throw err;
-    }
-
-    const session = this.sessions.create(identity, client);
     const signOptions = { expiresIn: config.JWT_EXPIRES_IN } as jwt.SignOptions;
-    const token = jwt.sign({ sub: session.id }, config.JWT_SECRET, signOptions);
-    return { token, user: identity };
+    const token = jwt.sign({ sub: account.id, role: account.role }, config.JWT_SECRET, signOptions);
+    return { token, user: toPublic(account) };
   }
 
-  /** Resolve a bearer token to its live session, or throw 401. */
-  verify(token: string): Session {
-    let sessionId: string;
+  /** Resolve a bearer token to its (fresh) account, or throw 401. */
+  verify(token: string): Account {
+    let sub: string;
     try {
-      sessionId = (jwt.verify(token, config.JWT_SECRET) as { sub: string }).sub;
+      sub = (jwt.verify(token, config.JWT_SECRET) as { sub: string }).sub;
     } catch {
       throw Unauthorized('Invalid or expired session');
     }
-    const session = this.sessions.get(sessionId);
-    if (!session) throw Unauthorized('Session expired — please sign in again');
-    return session;
-  }
-
-  /** End a session (best-effort — an invalid token is a no-op). */
-  logout(token: string): void {
-    try {
-      const sessionId = (jwt.verify(token, config.JWT_SECRET) as { sub: string }).sub;
-      this.sessions.delete(sessionId);
-    } catch {
-      /* already invalid */
-    }
+    const account = this.accounts.findById(sub);
+    if (!account) throw Unauthorized('Session no longer valid');
+    return account;
   }
 }

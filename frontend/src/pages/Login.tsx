@@ -17,8 +17,8 @@ export function Login() {
     setError(null);
     setBusy(true);
     try {
-      await login(email, password);
-      navigate('/dashboard');
+      const u = await login(email, password);
+      navigate(u.role === 'admin' ? '/admin' : '/dashboard');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Login failed');
     } finally {

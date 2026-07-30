@@ -74,7 +74,9 @@ export function Dashboard() {
         <section className="panel">
           <div className="panel-head">
             <h2>Overview</h2>
-            <span className="relationship-pill">Relationship {user?.relationshipId}</span>
+            <span className="relationship-pill">
+              {user?.relationshipName ?? `Relationship ${user?.relationshipId ?? ''}`}
+            </span>
           </div>
 
           <div className="tabs">

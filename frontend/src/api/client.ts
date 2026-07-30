@@ -2,10 +2,19 @@
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:4000';
 
+export type Role = 'admin' | 'user';
+
 export interface SessionUser {
+  id: string;
   email: string;
+  role: Role;
+  relationshipId: string | null;
+  relationshipName: string | null;
+}
+
+export interface RelationshipRef {
+  id: string;
   name: string;
-  relationshipId: string;
 }
 
 export interface DashboardSummary {
@@ -71,13 +80,22 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     }),
-
   logout: () => request<{ ok: true }>('/auth/logout', { method: 'POST' }),
-
   me: () => request<{ user: SessionUser }>('/auth/me'),
 
+  // metrics (scoped to the caller's allocated relationship)
   summary: () => request<DashboardSummary>('/metrics/summary'),
-
   overview: (direction: 'termination' | 'origination', metric: 'minutes' | 'attempts') =>
     request<OverviewSeries>(`/metrics/overview?direction=${direction}&metric=${metric}`),
+
+  // admin
+  admin: {
+    relationships: () => request<RelationshipRef[]>('/admin/relationships'),
+    users: () => request<SessionUser[]>('/admin/users'),
+    createUser: (input: { email: string; password: string; relationshipId: string; relationshipName: string }) =>
+      request<{ user: SessionUser }>('/admin/users', { method: 'POST', body: JSON.stringify(input) }),
+    updateUser: (id: string, patch: { password?: string; relationshipId?: string; relationshipName?: string }) =>
+      request<{ user: SessionUser }>(`/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
+    deleteUser: (id: string) => request<{ ok: true }>(`/admin/users/${id}`, { method: 'DELETE' }),
+  },
 };

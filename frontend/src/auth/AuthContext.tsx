@@ -3,7 +3,7 @@ import { api, setToken, type SessionUser } from '../api/client';
 
 interface AuthState {
   user: SessionUser | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<SessionUser>;
   logout: () => void;
 }
 
@@ -19,9 +19,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { token, user: u } = await api.login(email, password);
         setToken(token);
         setUser(u);
+        return u;
       },
       logout() {
-        void api.logout().catch(() => undefined); // best-effort server-side session end
+        void api.logout().catch(() => undefined);
         setToken(null);
         setUser(null);
       },

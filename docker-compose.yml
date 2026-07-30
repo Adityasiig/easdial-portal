@@ -27,12 +27,18 @@ services:
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in Coolify}
       # Public URL of the FRONTEND — the backend only accepts CORS from this origin.
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
-      # Peeredge data source. Pass-through auth: each user signs in with their own
-      # Peeredge credentials, so no Peeredge login is stored here.
+      # EasDial admin account (seeds the first admin login).
+      EASDIAL_ADMIN_EMAIL: ${EASDIAL_ADMIN_EMAIL:-admin@easdial.com}
+      EASDIAL_ADMIN_PASSWORD: ${EASDIAL_ADMIN_PASSWORD:-changeme_admin_password}
+      # Data source. "mock" = synthetic; "rest" = live DialPhone admin API.
       PEEREDGE_SOURCE: ${PEEREDGE_SOURCE:-mock}
       PEEREDGE_BASE_URL: ${PEEREDGE_BASE_URL:-https://api-dialphone.peeredge.com}
       PEEREDGE_SLUG: ${PEEREDGE_SLUG:-dialphone}
-      PEEREDGE_LOGIN_PATH: ${PEEREDGE_LOGIN_PATH:-/api/v2/relationship/auth/login}
+      PEEREDGE_BRAND_PREFIX: ${PEEREDGE_BRAND_PREFIX:-ED}
+      # Switch-admin SERVICE login (one account reads the whole switch).
+      PEEREDGE_ADMIN_EMAIL: ${PEEREDGE_ADMIN_EMAIL:-}
+      PEEREDGE_ADMIN_PASSWORD: ${PEEREDGE_ADMIN_PASSWORD:-}
+      PEEREDGE_ADMIN_LOGIN_PATH: ${PEEREDGE_ADMIN_LOGIN_PATH:-/api/v2/login}
     # Coolify's proxy routes the backend domain to this port internally.
     expose:
       - "4000"

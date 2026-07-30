@@ -1,32 +1,31 @@
 import { config } from '../../config.js';
-import type { PeeredgeClient } from './PeeredgeClient.js';
-import { MockPeeredgeClient } from './MockPeeredgeClient.js';
-import { RestPeeredgeClient } from './RestPeeredgeClient.js';
+import { logger } from '../../lib/logger.js';
+import type { SwitchDataClient } from './SwitchDataClient.js';
+import { MockSwitchClient } from './MockSwitchClient.js';
+import { AdminRestClient } from './AdminRestClient.js';
 import { PeeredgeSession } from './PeeredgeSession.js';
 
-export interface PeeredgeCredentials {
-  email: string;
-  password: string;
-}
+let instance: SwitchDataClient | null = null;
 
-/**
- * Build a Peeredge client for one user's credentials.
- * - rest mode: authenticates as that user (login → bearer token, per the 46 Labs reference).
- * - mock mode: returns synthetic data for local UI development (credentials ignored).
- */
-export function createPeeredgeClient(creds: PeeredgeCredentials): PeeredgeClient {
+/** Singleton switch client — one admin service login serves the whole portal. */
+export function getSwitchClient(): SwitchDataClient {
+  if (instance) return instance;
   if (config.PEEREDGE_SOURCE === 'rest') {
+    logger.info('Switch data source: REST (admin service login)');
     const session = new PeeredgeSession({
       baseUrl: config.PEEREDGE_BASE_URL as string,
       slug: config.PEEREDGE_SLUG,
-      loginPath: config.PEEREDGE_LOGIN_PATH,
-      email: creds.email,
-      password: creds.password,
+      loginPath: config.PEEREDGE_ADMIN_LOGIN_PATH,
+      email: config.PEEREDGE_ADMIN_EMAIL,
+      password: config.PEEREDGE_ADMIN_PASSWORD,
     });
-    return new RestPeeredgeClient(config.PEEREDGE_BASE_URL as string, session);
+    instance = new AdminRestClient(config.PEEREDGE_BASE_URL as string, session, config.PEEREDGE_BRAND_PREFIX);
+  } else {
+    logger.info('Switch data source: MOCK');
+    instance = new MockSwitchClient();
   }
-  return new MockPeeredgeClient(creds.email);
+  return instance;
 }
 
-export type { PeeredgeClient } from './PeeredgeClient.js';
+export type { SwitchDataClient } from './SwitchDataClient.js';
 export * from './types.js';
