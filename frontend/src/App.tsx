@@ -1,7 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from './auth/AuthContext';
 import { Login } from './pages/Login';
-import { SetPassword } from './pages/SetPassword';
 import { Dashboard } from './pages/Dashboard';
 import type { ReactNode } from 'react';
 
@@ -14,7 +13,6 @@ export function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
-      <Route path="/set-password" element={<SetPassword />} />
       <Route
         path="/dashboard"
         element={

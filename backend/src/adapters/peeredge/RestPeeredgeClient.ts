@@ -2,6 +2,7 @@ import type { PeeredgeClient } from './PeeredgeClient.js';
 import type {
   DashboardSummary,
   Direction,
+  Identity,
   MetricsQuery,
   NamedSeries,
   OverviewSeries,
@@ -35,7 +36,18 @@ export class RestPeeredgeClient implements PeeredgeClient {
     }
   }
 
-  async getDashboardSummary(relationshipId: string): Promise<DashboardSummary> {
+  /** Verify auth + return identity (Peeredge `/me`). Throws on bad credentials. */
+  async whoami(): Promise<Identity> {
+    const raw = await this.getJson<{ user?: Record<string, any> }>('/me');
+    const u = raw.user ?? {};
+    return {
+      email: String(u.email ?? ''),
+      name: String(u.user_name ?? u.name ?? 'Carrier'),
+      relationshipId: String(u.carrier_id ?? u.relationship_id ?? ''),
+    };
+  }
+
+  async getDashboardSummary(): Promise<DashboardSummary> {
     // CONFIRMED endpoints. cps_ports -> ports; statistics -> KPI rows + balance.
     const [ports, stats] = await Promise.all([
       this.getJson<{ ports?: number; cps?: number }>('/dashboard/cps_ports'),
@@ -51,7 +63,6 @@ export class RestPeeredgeClient implements PeeredgeClient {
     };
 
     return {
-      relationshipId,
       date: new Date().toISOString().slice(0, 10),
       dailyMinutes: num('minutes', 'daily_minutes', 'total_minutes'),
       dailyAttempts: num('attempts', 'daily_attempts', 'total_attempts'),
@@ -84,7 +95,6 @@ export class RestPeeredgeClient implements PeeredgeClient {
     }
 
     return {
-      relationshipId: query.relationshipId,
       direction: query.direction,
       metric: trafficType === 'attempts' ? 'attempts' : 'minutes',
       granularityMinutes: 15, // ASSUMED
@@ -97,9 +107,7 @@ export class RestPeeredgeClient implements PeeredgeClient {
   private async get(path: string): Promise<Response> {
     const url = `${this.base}${path}`;
     const doFetch = async () =>
-      fetch(url, {
-        headers: { ...this.session.baseHeaders(), Cookie: await this.session.cookieHeader() },
-      });
+      fetch(url, { headers: await this.session.requestHeaders() });
 
     let res = await this.withTimeout(doFetch());
     if (res.status === 401 || res.status === 403) {

@@ -3,15 +3,12 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:4000';
 
 export interface SessionUser {
-  id: string;
   email: string;
+  name: string;
   relationshipId: string;
-  brand: string;
-  role: string;
 }
 
 export interface DashboardSummary {
-  relationshipId: string;
   date: string;
   dailyMinutes: number;
   dailyAttempts: number;
@@ -30,7 +27,6 @@ export interface NamedSeries {
   points: SeriesPoint[];
 }
 export interface OverviewSeries {
-  relationshipId: string;
   direction: 'termination' | 'origination';
   metric: 'minutes' | 'attempts';
   granularityMinutes: number;
@@ -76,17 +72,7 @@ export const api = {
       body: JSON.stringify({ email, password }),
     }),
 
-  setPassword: (token: string, password: string) =>
-    request<{ ok: true }>('/auth/set-password', {
-      method: 'POST',
-      body: JSON.stringify({ token, password }),
-    }),
-
-  requestReset: (email: string) =>
-    request<{ ok: true }>('/auth/request-reset', {
-      method: 'POST',
-      body: JSON.stringify({ email }),
-    }),
+  logout: () => request<{ ok: true }>('/auth/logout', { method: 'POST' }),
 
   me: () => request<{ user: SessionUser }>('/auth/me'),
 

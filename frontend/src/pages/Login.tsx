@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
-import { api, ApiError } from '../api/client';
+import { ApiError } from '../api/client';
 import { brand } from '../theme/brand';
 
 export function Login() {
@@ -10,7 +10,6 @@ export function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [resetSent, setResetSent] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function onSubmit(e: FormEvent) {
@@ -25,13 +24,6 @@ export function Login() {
     } finally {
       setBusy(false);
     }
-  }
-
-  async function onReset() {
-    if (!email) return setError('Enter your email first, then click reset.');
-    setError(null);
-    await api.requestReset(email).catch(() => undefined);
-    setResetSent(true);
   }
 
   return (
@@ -49,11 +41,6 @@ export function Login() {
 
         <h1>Sign in</h1>
         {error && <div className="alert alert-error">{error}</div>}
-        {resetSent && (
-          <div className="alert alert-ok">
-            If that email exists, a reset link is on its way.
-          </div>
-        )}
 
         <label>
           Email
@@ -79,13 +66,8 @@ export function Login() {
         <button className="btn btn-primary" disabled={busy}>
           {busy ? 'Signing in…' : 'Sign in'}
         </button>
-        <button type="button" className="btn btn-link" onClick={onReset}>
-          Forgot password?
-        </button>
 
-        <p className="hint">
-          Demo: <code>carrier@easdial.com</code> / <code>EasDialDemo!2026</code>
-        </p>
+        <p className="hint">Sign in with your carrier credentials.</p>
       </form>
     </div>
   );

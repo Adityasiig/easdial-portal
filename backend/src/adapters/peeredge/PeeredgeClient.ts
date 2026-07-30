@@ -1,13 +1,16 @@
-import type { DashboardSummary, OverviewSeries, MetricsQuery } from './types.js';
+import type { DashboardSummary, Identity, OverviewSeries, MetricsQuery } from './types.js';
 
 /**
- * The single seam between our app and Peeredge.
- * Everything above this interface is source-agnostic (Dependency Inversion).
- * Implementations: MockPeeredgeClient (default), RestPeeredgeClient (live).
+ * The single seam between our app and Peeredge. One instance per authenticated
+ * user; the instance carries that user's session, so all reads are naturally
+ * scoped to their own relationship (Dependency Inversion).
  */
 export interface PeeredgeClient {
-  /** Headline KPI tiles for a relationship's current reporting day. */
-  getDashboardSummary(relationshipId: string): Promise<DashboardSummary>;
+  /** Verify auth and return the logged-in user's identity (Peeredge `/me`). */
+  whoami(): Promise<Identity>;
+
+  /** Headline KPI tiles for the current reporting day. */
+  getDashboardSummary(): Promise<DashboardSummary>;
 
   /** Time-series for the overview chart (Today / Yesterday / Last week). */
   getOverviewSeries(query: MetricsQuery): Promise<OverviewSeries>;

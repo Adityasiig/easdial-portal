@@ -7,19 +7,19 @@ import { healthRoutes } from './routes/health.js';
 import { authRoutes } from './routes/auth.js';
 import { metricsRoutes } from './routes/metrics.js';
 import { AuthService } from './services/authService.js';
-import { InMemoryUserStore, type UserStore } from './services/userStore.js';
-import { mailer } from './services/mailer.js';
+import { SessionStore } from './services/sessionStore.js';
 
 export interface BuiltServer {
   app: FastifyInstance;
-  store: UserStore;
+  sessions: SessionStore;
   authService: AuthService;
 }
 
-/** Compose the app. Store is injected so tests can swap it. */
-export async function buildServer(store: UserStore = new InMemoryUserStore()): Promise<BuiltServer> {
+/** Compose the app. */
+export async function buildServer(): Promise<BuiltServer> {
   const app = Fastify({ logger: false });
-  const authService = new AuthService(store, mailer);
+  const sessions = new SessionStore();
+  const authService = new AuthService(sessions);
 
   await app.register(helmet);
   await app.register(cors, { origin: config.CORS_ORIGIN, credentials: true });
@@ -30,5 +30,5 @@ export async function buildServer(store: UserStore = new InMemoryUserStore()): P
   await app.register(async (a) => authRoutes(a, authService));
   await app.register(async (a) => metricsRoutes(a, authService));
 
-  return { app, store, authService };
+  return { app, sessions, authService };
 }

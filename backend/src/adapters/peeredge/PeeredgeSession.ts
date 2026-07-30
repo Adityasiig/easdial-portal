@@ -2,93 +2,100 @@ import { logger } from '../../lib/logger.js';
 import { AppError } from '../../lib/errors.js';
 
 /**
- * Handles authentication to the PeerEdge relationship API.
+ * Authenticates to a PeerEdge tenant using the login → Bearer-token flow
+ * documented in the 46 Labs integration reference:
  *
- * The API uses a session COOKIE (no API key / bearer token — confirmed from the
- * captured traffic). Two env-driven modes:
+ *   POST https://api-<slug>.peeredge.com<loginPath>
+ *   headers: Content-Type: application/json, User-Agent: <browser>, Referer: https://<slug>.peeredge.com/
+ *   body:    { "user": { "email": "...", "password": "..." } }
+ *   -> token is returned in the `Authorization` RESPONSE header ("Bearer <token>"),
+ *      NOT the JSON body. We strip "Bearer " and cache it (~10 min TTL).
  *
- *   PEEREDGE_AUTH_MODE=cookie  -> use PEEREDGE_SESSION_COOKIE verbatim as the
- *                                 Cookie header. Simplest; the cookie expires, so
- *                                 this suits testing or a short-lived refresh job.
- *
- *   PEEREDGE_AUTH_MODE=login   -> POST PEEREDGE_EMAIL/PEEREDGE_PASSWORD to
- *                                 PEEREDGE_LOGIN_URL, capture Set-Cookie, reuse it,
- *                                 and re-login automatically on a 401.
- *
- * Secrets come only from env — never hardcoded, never logged.
+ * A legacy `sessionCookie` mode is kept as a fallback for manual testing.
  */
 export interface PeeredgeAuthConfig {
-  mode: 'cookie' | 'login';
-  baseUrl: string;
-  origin: string;
-  sessionCookie?: string;
-  loginUrl?: string;
+  baseUrl: string; // https://api-<slug>.peeredge.com
+  slug: string; // <slug> (used for Referer)
+  loginPath: string; // /api/v2/login (admin) or /api/v2/relationship/auth/login (carrier)
   email?: string;
   password?: string;
+  sessionCookie?: string; // fallback: use a raw Cookie header instead of login
 }
 
+const TOKEN_TTL_MS = 10 * 60 * 1000; // 10 minutes, per the reference doc
+const BROWSER_UA =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';
+
 export class PeeredgeSession {
-  private cookie: string | null = null;
+  private token: string | null = null;
+  private tokenAt = 0;
 
-  constructor(private readonly cfg: PeeredgeAuthConfig) {
-    if (cfg.mode === 'cookie') this.cookie = cfg.sessionCookie ?? null;
-  }
+  constructor(private readonly cfg: PeeredgeAuthConfig) {}
 
-  /** Base headers every API call needs (Origin/Referer are validated server-side). */
-  baseHeaders(): Record<string, string> {
+  /** Browser-like headers the PeerEdge edge requires (UA + Referer). */
+  private baseHeaders(): Record<string, string> {
     return {
+      'User-Agent': BROWSER_UA,
+      Referer: `https://${this.cfg.slug}.peeredge.com/`,
       Accept: 'application/json, text/plain, */*',
-      Origin: this.cfg.origin,
-      Referer: `${this.cfg.origin}/`,
     };
   }
 
-  /** Return the current Cookie header, logging in first if needed. */
-  async cookieHeader(): Promise<string> {
-    if (this.cookie) return this.cookie;
-    if (this.cfg.mode === 'login') {
-      await this.login();
-      if (this.cookie) return this.cookie;
+  /** Full header set for an authenticated request (Bearer token or fallback cookie). */
+  async requestHeaders(extra: Record<string, string> = {}): Promise<Record<string, string>> {
+    const headers = { ...this.baseHeaders(), ...extra };
+    if (this.cfg.sessionCookie) {
+      headers.Cookie = this.cfg.sessionCookie;
+      return headers;
     }
-    throw new AppError(
-      500,
-      'peeredge_no_session',
-      'No PeerEdge session available (set PEEREDGE_SESSION_COOKIE or login creds)',
-    );
+    headers.Authorization = `Bearer ${await this.getToken()}`;
+    return headers;
   }
 
-  /** Force a fresh login (used on 401). No-op in cookie mode. */
+  /** Force a fresh login (used on 401/403). No-op in cookie mode. */
   async refresh(): Promise<void> {
-    if (this.cfg.mode === 'login') {
-      this.cookie = null;
-      await this.login();
-    }
+    if (this.cfg.sessionCookie) return;
+    this.token = null;
+    await this.login();
+  }
+
+  private async getToken(): Promise<string> {
+    if (this.token && Date.now() - this.tokenAt < TOKEN_TTL_MS) return this.token;
+    await this.login();
+    return this.token as string;
   }
 
   private async login(): Promise<void> {
-    const { loginUrl, email, password } = this.cfg;
-    if (!loginUrl || !email || !password) {
-      throw new AppError(500, 'peeredge_login_misconfig', 'Login mode missing URL/credentials');
+    const { baseUrl, loginPath, email, password } = this.cfg;
+    if (!email || !password) {
+      throw new AppError(500, 'peeredge_login_misconfig', 'PEEREDGE_EMAIL / PEEREDGE_PASSWORD not set');
     }
-    // NOTE: exact payload field names must be confirmed by capturing the login
-    // request (log out -> record -> log in). Adjust the body below to match.
-    const res = await fetch(loginUrl, {
-      method: 'POST',
-      headers: { ...this.baseHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
+    const url = `${baseUrl.replace(/\/$/, '')}${loginPath}`;
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        headers: { ...this.baseHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user: { email, password } }),
+      });
+    } catch (err) {
+      logger.error({ err }, 'PeerEdge login request failed');
+      throw new AppError(502, 'peeredge_unreachable', 'PeerEdge login unreachable');
+    }
     if (!res.ok) {
+      // Distinguish "wrong credentials" (client sees 401) from an upstream fault (502).
+      if ([400, 401, 403, 422].includes(res.status)) {
+        throw new AppError(401, 'peeredge_bad_credentials', 'Invalid email or password');
+      }
       throw new AppError(502, 'peeredge_login_failed', `PeerEdge login returned ${res.status}`);
     }
-    const setCookie = res.headers.get('set-cookie');
-    if (!setCookie) {
-      throw new AppError(502, 'peeredge_login_no_cookie', 'PeerEdge login returned no Set-Cookie');
+    // Token comes back in the Authorization RESPONSE header, not the body.
+    const auth = res.headers.get('authorization');
+    if (!auth) {
+      throw new AppError(502, 'peeredge_login_no_token', 'PeerEdge login returned no Authorization header');
     }
-    // Keep only the "name=value" pairs for the Cookie header.
-    this.cookie = setCookie
-      .split(/,(?=[^;]+?=)/)
-      .map((c) => c.split(';')[0].trim())
-      .join('; ');
-    logger.info('PeerEdge session established via login');
+    this.token = auth.replace(/^Bearer\s+/i, '').trim();
+    this.tokenAt = Date.now();
+    logger.info('PeerEdge session established (bearer token)');
   }
 }

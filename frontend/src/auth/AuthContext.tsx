@@ -21,6 +21,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(u);
       },
       logout() {
+        void api.logout().catch(() => undefined); // best-effort server-side session end
         setToken(null);
         setUser(null);
       },

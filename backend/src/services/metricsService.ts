@@ -1,29 +1,20 @@
-import { getPeeredgeClient } from '../adapters/peeredge/index.js';
+import type { PeeredgeClient } from '../adapters/peeredge/index.js';
 import type { DashboardSummary, Direction, OverviewSeries } from '../adapters/peeredge/types.js';
 
 /**
- * Thin domain service over the Peeredge adapter. Enforces tenant scoping:
- * callers pass the relationshipId taken from the authenticated JWT, never from
- * user-supplied input, so a carrier can only read their own data.
+ * Stateless helpers over an authenticated user's Peeredge client. Scoping is
+ * intrinsic — the client carries that user's session — so there is no
+ * relationship id to pass (and thus no way to read someone else's data).
  */
-export class MetricsService {
-  private client = getPeeredgeClient();
-
-  getSummary(relationshipId: string): Promise<DashboardSummary> {
-    return this.client.getDashboardSummary(relationshipId);
-  }
-
-  getOverview(
-    relationshipId: string,
+export const metrics = {
+  summary(client: PeeredgeClient): Promise<DashboardSummary> {
+    return client.getDashboardSummary();
+  },
+  overview(
+    client: PeeredgeClient,
     direction: Direction,
-    metric: 'minutes' | 'attempts' = 'minutes',
+    metric: 'minutes' | 'attempts',
   ): Promise<OverviewSeries> {
-    return this.client.getOverviewSeries({ relationshipId, direction, metric });
-  }
-
-  upstreamHealthy(): Promise<boolean> {
-    return this.client.healthy();
-  }
-}
-
-export const metricsService = new MetricsService();
+    return client.getOverviewSeries({ direction, metric });
+  },
+};
