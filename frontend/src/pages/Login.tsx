@@ -17,8 +17,8 @@ export function Login() {
     setError(null);
     setBusy(true);
     try {
-      const u = await login(email, password);
-      navigate(u.role === 'admin' ? '/admin' : '/dashboard');
+      const user = await login(email, password);
+      navigate(user.role === 'admin' ? '/admin' : '/dashboard');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Login failed');
     } finally {
@@ -28,47 +28,54 @@ export function Login() {
 
   return (
     <div className="auth-shell">
-      <form className="auth-card" onSubmit={onSubmit}>
-        <div className="brand-mark">
-          <span className="brand-logo" style={{ background: brand.primary }}>
-            ))
-          </span>
-          <div>
-            <div className="brand-name">{brand.name}</div>
-            <div className="brand-sub">{brand.productName}</div>
+      <section className="auth-showcase">
+        <div className="auth-showcase-inner">
+          <div className="brand-mark auth-brand">
+            <span className="brand-logo">E</span>
+            <div><div className="brand-name">{brand.name}</div><div className="brand-sub">{brand.productName}</div></div>
+          </div>
+
+          <div className="auth-copy">
+            <span className="auth-kicker"><span className="status-dot" /> Connected globally</span>
+            <h1>Your voice network.<br />Crystal clear.</h1>
+            <p>Monitor performance, inspect every call, and manage carrier finances from one secure workspace.</p>
+          </div>
+
+          <div className="signal-card">
+            <div className="signal-card-head"><span>Live network</span><span>Operational</span></div>
+            <div className="signal-bars" aria-hidden>
+              {[34, 48, 41, 68, 54, 82, 61, 88, 72, 96, 76, 91, 68, 84, 58, 72, 47, 62].map((height, index) => (
+                <span key={index} style={{ height: `${height}%` }} />
+              ))}
+            </div>
+            <div className="signal-meta"><span>Real-time visibility</span><span>24/7 monitoring</span></div>
           </div>
         </div>
+      </section>
 
-        <h1>Sign in</h1>
-        {error && <div className="alert alert-error">{error}</div>}
-
-        <label>
-          Email
-          <input
-            type="email"
-            value={email}
-            autoComplete="username"
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-        </label>
-        <label>
-          Password
-          <input
-            type="password"
-            value={password}
-            autoComplete="current-password"
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </label>
-
-        <button className="btn btn-primary" disabled={busy}>
-          {busy ? 'Signing in…' : 'Sign in'}
-        </button>
-
-        <p className="hint">Sign in with your carrier credentials.</p>
-      </form>
+      <section className="auth-form-wrap">
+        <form className="auth-card" onSubmit={onSubmit}>
+          <div className="auth-form-head">
+            <span className="auth-form-kicker">Welcome back</span>
+            <h2>Sign in to your portal</h2>
+            <p>Use your carrier credentials to continue.</p>
+          </div>
+          {error && <div className="alert alert-error">{error}</div>}
+          <label>
+            <span>Email address</span>
+            <input type="email" value={email} autoComplete="username" placeholder="name@company.com" onChange={(e) => setEmail(e.target.value)} required />
+          </label>
+          <label>
+            <span>Password</span>
+            <input type="password" value={password} autoComplete="current-password" placeholder="Enter your password" onChange={(e) => setPassword(e.target.value)} required />
+          </label>
+          <button className="btn btn-primary auth-submit" disabled={busy}>
+            <span>{busy ? 'Signing in…' : 'Sign in securely'}</span>{!busy && <span aria-hidden>→</span>}
+          </button>
+          <p className="hint"><span className="lock-dot">✓</span> Encrypted and protected access</p>
+        </form>
+        <p className="auth-legal">© {new Date().getFullYear()} {brand.company} · Secure carrier access</p>
+      </section>
     </div>
   );
 }

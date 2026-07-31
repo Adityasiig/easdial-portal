@@ -19,23 +19,32 @@ export function Shell({ title, children }: { title: string; children: ReactNode 
   const { user, logout } = useAuth();
   const clock = useGmtClock();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
   const initial = (user?.email?.[0] ?? 'E').toUpperCase();
 
   return (
     <div className="app-shell">
-      <Sidebar />
+      <Sidebar visible={navOpen} onClose={() => setNavOpen(false)} />
+      {navOpen && <button className="nav-backdrop" aria-label="Close navigation" onClick={() => setNavOpen(false)} />}
       <main className="content-col">
         <header className="topbar">
-          <h1>{title}</h1>
+          <div className="topbar-title">
+            <button className="mobile-menu" aria-label="Open navigation" onClick={() => setNavOpen(true)}>
+              <span />
+              <span />
+              <span />
+            </button>
+            <div>
+              <span className="page-eyebrow">Carrier workspace</span>
+              <h1>{title}</h1>
+            </div>
+          </div>
           <div className="topbar-right">
-            <span className="topstat">
-              Active Calls: <b>0</b>
-            </span>
-            <span className="topbar-sep" />
-            <span className="topstat">
-              Active CPS: <b>0</b>
-            </span>
-            <span className="topbar-sep" />
+            <div className="network-summary">
+              <span className="live-status"><span className="status-dot" /> Network live</span>
+              <span className="topstat"><b>0</b> Calls</span>
+              <span className="topstat"><b>0</b> CPS</span>
+            </div>
             <span className="clock">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
                 <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
@@ -44,15 +53,20 @@ export function Shell({ title, children }: { title: string; children: ReactNode 
               {clock}
             </span>
             <div className="avatar-wrap">
-              <button className="avatar" onClick={() => setMenuOpen((v) => !v)} title={user?.email}>
+              <button
+                className="avatar"
+                onClick={() => setMenuOpen((v) => !v)}
+                title={user?.email}
+                aria-label="Open account menu"
+                aria-expanded={menuOpen}
+              >
                 {initial}
               </button>
               {menuOpen && (
                 <div className="avatar-menu">
+                  <div className="avatar-menu-label">Signed in as</div>
                   <div className="avatar-menu-email">{user?.email}</div>
-                  <button className="btn btn-link" onClick={logout}>
-                    Sign out
-                  </button>
+                  <button className="btn btn-link" onClick={logout}>Sign out</button>
                 </div>
               )}
             </div>
@@ -61,7 +75,7 @@ export function Shell({ title, children }: { title: string; children: ReactNode 
         <div className="content">{children}</div>
         <footer className="page-footer">
           <span>{brand.company}</span>
-          <span>© {new Date().getFullYear()} | All Rights Reserved.</span>
+          <span>© {new Date().getFullYear()} · All rights reserved</span>
         </footer>
       </main>
     </div>

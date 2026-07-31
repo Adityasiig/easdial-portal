@@ -60,9 +60,7 @@ export function AdminPortal() {
     <div className="admin-shell">
       <header className="topbar">
         <div className="brand-mark">
-          <span className="brand-logo" style={{ background: brand.primary }}>
-            ))
-          </span>
+          <span className="brand-logo">E</span>
           <div>
             <div className="brand-name">{brand.name} Admin</div>
             <div className="brand-sub">User &amp; relationship management</div>

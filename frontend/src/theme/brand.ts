@@ -3,10 +3,10 @@ export const brand = {
   name: 'EasDial',
   productName: 'Carrier Portal',
   company: 'EasDial, LLC',
-  primary: '#2f6df6',
-  primaryDark: '#1f4fd0',
-  accent: '#12b981',
+  primary: '#375dfb',
+  primaryDark: '#2446dc',
+  accent: '#0a9f6e',
   /** Chart line colors, assigned by series index. */
-  seriesPalette: ['#2f6df6', '#c9a227', '#16b6c9', '#8b5cf6', '#e2564e'],
+  seriesPalette: ['#375dfb', '#0a9f6e', '#16a3c7', '#8b5cf6', '#e15b64'],
   tz: 'GMT',
 };

@@ -30,32 +30,36 @@ const compact = (n: number) =>
 export function OverviewChart({ data }: { data: OverviewSeries }) {
   const rows = toRows(data);
   return (
-    <div style={{ width: '100%', height: 340 }}>
+    <div style={{ width: '100%', height: 340 }} aria-label="Traffic overview chart">
       <ResponsiveContainer>
-        <LineChart data={rows} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#eef1f6" vertical={false} />
+        <LineChart data={rows} margin={{ top: 18, right: 18, left: 0, bottom: 2 }}>
+          <CartesianGrid strokeDasharray="2 5" stroke="#e8ecf2" vertical={false} />
           <XAxis
             dataKey="time"
-            tick={{ fontSize: 12, fill: '#8a93a6' }}
+            tick={{ fontSize: 10, fill: '#929daf' }}
             interval={11}
             axisLine={false}
             tickLine={false}
           />
           <YAxis
             tickFormatter={compact}
-            tick={{ fontSize: 12, fill: '#8a93a6' }}
+            tick={{ fontSize: 10, fill: '#929daf' }}
             axisLine={false}
             tickLine={false}
             width={44}
           />
-          <Tooltip formatter={(v: number) => v.toLocaleString()} />
+          <Tooltip
+            formatter={(v: number) => v.toLocaleString()}
+            contentStyle={{ border: '1px solid #e3e8f0', borderRadius: 11, boxShadow: '0 12px 30px rgba(15, 23, 42, .12)', fontSize: 11 }}
+            labelStyle={{ color: '#7a8699', marginBottom: 7 }}
+          />
           {data.series.map((s, i) => (
             <Line
               key={s.label}
               type="monotone"
               dataKey={s.label}
               stroke={brand.seriesPalette[i % brand.seriesPalette.length]}
-              strokeWidth={2}
+              strokeWidth={2.25}
               dot={false}
             />
           ))}
