@@ -4,6 +4,7 @@ import type {
   MetricsQuery,
   NamedSeries,
   OverviewSeries,
+  PerformanceRow,
   RelationshipRef,
   SeriesPoint,
 } from './types.js';
@@ -56,6 +57,33 @@ export class MockSwitchClient implements SwitchDataClient {
       { label: 'Last week', points: this.dayCurve(seed + 31, scale, 1.08) },
     ];
     return { direction: query.direction, metric, granularityMinutes: this.granularityMinutes, series };
+  }
+
+  async getPerformance(
+    relationshipId: string,
+    direction: 'termination' | 'origination',
+  ): Promise<PerformanceRow[]> {
+    const routes = ['USA SD', 'USA Convo', 'Canada Flat', 'UK', 'Australia', 'India CC'];
+    return routes.map((r, i) => {
+      const seed = this.seedFor(relationshipId + direction + r);
+      const attempts = 20_000 + (seed % 90_000) + i * 5_000;
+      const asr = 20 + (seed % 45);
+      const acd = 15 + (seed % 40);
+      const minutes = Math.round((attempts * (asr / 100) * acd) / 60);
+      const cost = Math.round(minutes * (0.004 + (seed % 20) / 10_000) * 100) / 100;
+      const revenue = Math.round(cost * (0.85 + (seed % 30) / 100) * 100) / 100;
+      return {
+        name: r,
+        attempts,
+        asr: Math.round(asr * 100) / 100,
+        acd,
+        minutes,
+        pdd: 300 + (seed % 400),
+        cost,
+        revenue,
+        margin: Math.round((revenue - cost) * 100) / 100,
+      };
+    });
   }
 
   private seedFor(key: string): number {

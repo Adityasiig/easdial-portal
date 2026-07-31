@@ -1,6 +1,10 @@
+import { NavLink } from 'react-router-dom';
 import { brand } from '../theme/brand';
 
-const items = ['Dashboard', 'Relationships', 'Reports', 'Tools', 'Settings', 'Help'];
+const items = [
+  { to: '/dashboard', label: 'Dashboard' },
+  { to: '/reports', label: 'Reports' },
+];
 
 export function Sidebar() {
   return (
@@ -12,10 +16,14 @@ export function Sidebar() {
         <span className="brand-name">{brand.name}</span>
       </div>
       <nav>
-        {items.map((label, i) => (
-          <a key={label} className={`nav-item ${i === 0 ? 'active' : ''}`} href="#">
-            {label}
-          </a>
+        {items.map((it) => (
+          <NavLink
+            key={it.to}
+            to={it.to}
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+          >
+            {it.label}
+          </NavLink>
         ))}
       </nav>
     </aside>

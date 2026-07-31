@@ -1,5 +1,11 @@
 import type { SwitchDataClient } from './SwitchDataClient.js';
-import type { DashboardSummary, MetricsQuery, OverviewSeries, RelationshipRef } from './types.js';
+import type {
+  DashboardSummary,
+  MetricsQuery,
+  OverviewSeries,
+  PerformanceRow,
+  RelationshipRef,
+} from './types.js';
 import { logger } from '../../lib/logger.js';
 import { AppError } from '../../lib/errors.js';
 import { PeeredgeSession } from './PeeredgeSession.js';
@@ -71,6 +77,16 @@ export class AdminRestClient implements SwitchDataClient {
         { label: 'Last week', points: [] },
       ],
     };
+  }
+
+  async getPerformance(
+    relationshipId: string,
+    _direction: 'termination' | 'origination',
+  ): Promise<PerformanceRow[]> {
+    // TODO(confirm-with-creds): GET /relationship_performance/level1 (per trunk group)
+    // filtered to this relationship. Empty until the endpoint is confirmed live.
+    logger.warn({ relationshipId }, 'per-relationship performance endpoint pending confirmation');
+    return [];
   }
 
   /**

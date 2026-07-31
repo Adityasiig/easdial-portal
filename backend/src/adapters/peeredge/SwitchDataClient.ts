@@ -1,4 +1,10 @@
-import type { DashboardSummary, MetricsQuery, OverviewSeries, RelationshipRef } from './types.js';
+import type {
+  DashboardSummary,
+  MetricsQuery,
+  OverviewSeries,
+  PerformanceRow,
+  RelationshipRef,
+} from './types.js';
 
 /**
  * Reads the DialPhone switch on behalf of the whole portal, using ONE admin
@@ -14,6 +20,9 @@ export interface SwitchDataClient {
 
   /** Overview time-series for one relationship. */
   getOverview(relationshipId: string, query: MetricsQuery): Promise<OverviewSeries>;
+
+  /** Termination/origination performance report rows for one relationship. */
+  getPerformance(relationshipId: string, direction: 'termination' | 'origination'): Promise<PerformanceRow[]>;
 
   healthy(): Promise<boolean>;
 }

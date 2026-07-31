@@ -34,4 +34,9 @@ export async function metricsRoutes(app: FastifyInstance, authService: AuthServi
     const { relationshipId, direction, metric } = scope(req);
     return getSwitchClient().getOverview(relationshipId, { direction, metric });
   });
+
+  app.get('/metrics/performance', async (req) => {
+    const { relationshipId, direction } = scope(req);
+    return getSwitchClient().getPerformance(relationshipId, direction);
+  });
 }

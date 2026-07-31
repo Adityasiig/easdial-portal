@@ -40,3 +40,16 @@ export interface MetricsQuery {
   direction: Direction;
   metric?: 'minutes' | 'attempts';
 }
+
+/** One row of the termination/origination performance report (per trunk group / destination). */
+export interface PerformanceRow {
+  name: string;
+  attempts: number;
+  asr: number; // answer-seizure ratio, %
+  acd: number; // average call duration
+  minutes: number;
+  pdd: number; // post-dial delay, ms
+  cost: number;
+  revenue: number;
+  margin: number;
+}

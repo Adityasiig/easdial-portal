@@ -42,6 +42,18 @@ export interface OverviewSeries {
   series: NamedSeries[];
 }
 
+export interface PerformanceRow {
+  name: string;
+  attempts: number;
+  asr: number;
+  acd: number;
+  minutes: number;
+  pdd: number;
+  cost: number;
+  revenue: number;
+  margin: number;
+}
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -87,6 +99,8 @@ export const api = {
   summary: () => request<DashboardSummary>('/metrics/summary'),
   overview: (direction: 'termination' | 'origination', metric: 'minutes' | 'attempts') =>
     request<OverviewSeries>(`/metrics/overview?direction=${direction}&metric=${metric}`),
+  performance: (direction: 'termination' | 'origination') =>
+    request<PerformanceRow[]>(`/metrics/performance?direction=${direction}`),
 
   // admin
   admin: {
