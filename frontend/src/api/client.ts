@@ -3,6 +3,8 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:4000';
 
 export type Role = 'admin' | 'user';
+export type Direction = 'termination' | 'origination';
+export type PartyRole = 'customer' | 'vendor';
 
 export interface SessionUser {
   id: string;
@@ -19,12 +21,11 @@ export interface RelationshipRef {
 
 export interface DashboardSummary {
   date: string;
+  runningBalance: number;
   dailyMinutes: number;
   dailyAttempts: number;
-  dailyAttemptsTarget: number;
-  dailyPrv: number;
-  dailyPrvTarget: number;
-  activePorts: number;
+  dailyAsr: number;
+  dailyAloc: number | null;
 }
 
 export interface SeriesPoint {
@@ -36,22 +37,86 @@ export interface NamedSeries {
   points: SeriesPoint[];
 }
 export interface OverviewSeries {
-  direction: 'termination' | 'origination';
+  direction: Direction;
   metric: 'minutes' | 'attempts';
   granularityMinutes: number;
   series: NamedSeries[];
 }
 
-export interface PerformanceRow {
+export interface RelPerformanceRow {
   name: string;
   attempts: number;
-  asr: number;
-  acd: number;
+  completions: number;
   minutes: number;
-  pdd: number;
-  cost: number;
-  revenue: number;
-  margin: number;
+  asr: number;
+  aloc: number;
+  sdr: number;
+  mos: number;
+}
+
+export interface NumberingRow {
+  number: string;
+  type: string;
+  lastModified: string;
+  modifiedBy: string;
+}
+
+export interface CdrRow {
+  dateTime: string;
+  ani: string;
+  dnis: string;
+  lrn: string;
+  releaseCode: string;
+  releaseCause: string;
+  duration: number;
+  relationshipTrunk: string;
+  origJuris: string;
+  rate: number;
+}
+
+export interface RateRow {
+  name: string;
+  trunkGroups: number;
+  direction: string;
+  relationship: string;
+  location: string;
+  type: string;
+  totalRates: number;
+  expirationDate: string | null;
+  modified: string;
+}
+
+export interface InvoiceRow {
+  invoiceNumber: string;
+  validity: string;
+  createdAt: string;
+  startEndDate: string;
+  invoiceCycle: string;
+  invoiceAmount: number;
+  tag: string;
+}
+
+export interface TransactionRow {
+  date: string;
+  transaction: string;
+  type: string;
+  transactionDate: string;
+  amount: number;
+  runningBalance: number;
+  paymentMemo: string;
+  addedFrom: string;
+}
+
+export interface PaymentRow {
+  carrierName: string;
+  description: string;
+  invoiceId: string;
+  totalAmount: number;
+  paidTo: string;
+  paypalFee: number;
+  purchasedAt: string;
+  reason: string;
+  status: string;
 }
 
 export class ApiError extends Error {
@@ -97,10 +162,16 @@ export const api = {
 
   // metrics (scoped to the caller's allocated relationship)
   summary: () => request<DashboardSummary>('/metrics/summary'),
-  overview: (direction: 'termination' | 'origination', metric: 'minutes' | 'attempts') =>
+  overview: (direction: Direction, metric: 'minutes' | 'attempts') =>
     request<OverviewSeries>(`/metrics/overview?direction=${direction}&metric=${metric}`),
-  performance: (direction: 'termination' | 'origination') =>
-    request<PerformanceRow[]>(`/metrics/performance?direction=${direction}`),
+  relPerformance: (direction: Direction, role: PartyRole) =>
+    request<RelPerformanceRow[]>(`/metrics/relationship-performance?direction=${direction}&role=${role}`),
+  numbering: () => request<NumberingRow[]>('/metrics/numbering'),
+  cdrs: (direction: Direction) => request<CdrRow[]>(`/metrics/cdrs?direction=${direction}`),
+  rates: () => request<RateRow[]>('/metrics/rates'),
+  invoices: () => request<InvoiceRow[]>('/metrics/invoices'),
+  transactions: () => request<TransactionRow[]>('/metrics/transactions'),
+  payments: () => request<PaymentRow[]>('/metrics/payments'),
 
   // admin
   admin: {

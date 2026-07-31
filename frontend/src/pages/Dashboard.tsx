@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, type DashboardSummary, type OverviewSeries } from '../api/client';
-import { useAuth } from '../auth/AuthContext';
 import { Shell } from '../components/Shell';
-import { StatCard } from '../components/StatCard';
 import { OverviewChart } from '../components/OverviewChart';
 import { brand } from '../theme/brand';
 
@@ -12,12 +10,13 @@ const TABS: Tab[] = [
   { key: 'Termination Minutes', direction: 'termination', metric: 'minutes' },
   { key: 'Origination Minutes', direction: 'origination', metric: 'minutes' },
   { key: 'Termination Attempts', direction: 'termination', metric: 'attempts' },
+  { key: 'Origination Attempts', direction: 'origination', metric: 'attempts' },
 ];
 
 const fmt = (n: number) => Math.round(n).toLocaleString();
+const money = (n: number) => `$${n < 0 ? '-' : ''}${Math.abs(n).toFixed(2)}`;
 
 export function Dashboard() {
-  const { user } = useAuth();
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [tab, setTab] = useState<Tab>(TABS[0]);
   const [overview, setOverview] = useState<OverviewSeries | null>(null);
@@ -36,28 +35,37 @@ export function Dashboard() {
     <Shell title="Dashboard">
       {error && <div className="alert alert-error">{error}</div>}
 
-      <section className="stat-row">
-        <StatCard label="Daily Minutes" value={summary ? fmt(summary.dailyMinutes) : '—'} />
-        <StatCard
-          label="Daily Attempts"
-          value={summary ? fmt(summary.dailyAttempts) : '—'}
-          sub={summary ? `/ ${fmt(summary.dailyAttemptsTarget)}` : undefined}
-        />
-        <StatCard
-          label="Daily PRV"
-          value={summary ? summary.dailyPrv.toFixed(2) : '—'}
-          sub={summary ? `/ ${summary.dailyPrvTarget.toFixed(2)}` : undefined}
-          negative={(summary?.dailyPrv ?? 0) < 0}
-        />
-        <StatCard label="Active Ports" value={summary ? fmt(summary.activePorts) : '—'} />
+      <section className="kpi-strip">
+        <div className="kpi">
+          <div className="kpi-label">Running Balance</div>
+          <div className="kpi-value">{summary ? money(summary.runningBalance) : '—'}</div>
+        </div>
+        <div className="kpi">
+          <div className="kpi-label">Daily Minutes</div>
+          <div className="kpi-value">{summary ? fmt(summary.dailyMinutes) : '—'}</div>
+        </div>
+        <div className="kpi">
+          <div className="kpi-label">Daily Attempts</div>
+          <div className="kpi-value">{summary ? fmt(summary.dailyAttempts) : '—'}</div>
+        </div>
+        <div className="kpi">
+          <div className="kpi-label">Daily ASR</div>
+          <div className="kpi-value">{summary ? `${summary.dailyAsr.toFixed(2)}%` : '—'}</div>
+        </div>
+        <div className="kpi">
+          <div className="kpi-label">Daily ALOC</div>
+          <div className="kpi-value">
+            {summary ? (summary.dailyAloc === null ? 'N / A' : summary.dailyAloc.toFixed(2)) : '—'}
+          </div>
+        </div>
       </section>
 
       <section className="panel">
-        <div className="panel-head">
+        <div className="panel-head panel-head-left">
           <h2>Overview</h2>
-          <span className="relationship-pill">
-            {user?.relationshipName ?? `Relationship ${user?.relationshipId ?? ''}`}
-          </span>
+          <select className="inline-select" defaultValue="all-day" aria-label="Period">
+            <option value="all-day">All Day</option>
+          </select>
         </div>
 
         <div className="tabs">
@@ -75,19 +83,17 @@ export function Dashboard() {
         {overview ? <OverviewChart data={overview} /> : <div className="chart-skeleton" />}
 
         <div className="legend">
-          {overview?.series.map((s) => (
+          {overview?.series.map((s, i) => (
             <span key={s.label} className="legend-item">
               <span
                 className="legend-swatch"
-                style={{ background: brand.seriesColors[s.label] ?? '#888' }}
+                style={{ background: brand.seriesPalette[i % brand.seriesPalette.length] }}
               />
               {s.label}
             </span>
           ))}
         </div>
       </section>
-
-      <footer className="footer">EasDial Carrier Portal · times in {brand.tz}</footer>
     </Shell>
   );
 }

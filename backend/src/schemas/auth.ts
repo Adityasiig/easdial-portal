@@ -21,5 +21,6 @@ export const updateUserSchema = z.object({
 export const metricsQuerySchema = z.object({
   direction: z.enum(['termination', 'origination']).default('termination'),
   metric: z.enum(['minutes', 'attempts']).default('minutes'),
+  role: z.enum(['customer', 'vendor']).default('customer'),
   relationshipId: z.string().optional(), // admins may preview a specific relationship
 });

@@ -49,12 +49,12 @@ export function OverviewChart({ data }: { data: OverviewSeries }) {
             width={44}
           />
           <Tooltip formatter={(v: number) => v.toLocaleString()} />
-          {data.series.map((s) => (
+          {data.series.map((s, i) => (
             <Line
               key={s.label}
               type="monotone"
               dataKey={s.label}
-              stroke={brand.seriesColors[s.label] ?? '#888'}
+              stroke={brand.seriesPalette[i % brand.seriesPalette.length]}
               strokeWidth={2}
               dot={false}
             />

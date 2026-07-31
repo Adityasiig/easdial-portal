@@ -1,10 +1,18 @@
 import type { SwitchDataClient } from './SwitchDataClient.js';
 import type {
+  CdrRow,
   DashboardSummary,
+  Direction,
+  InvoiceRow,
   MetricsQuery,
+  NumberingRow,
   OverviewSeries,
-  PerformanceRow,
+  PartyRole,
+  PaymentRow,
+  RateRow,
   RelationshipRef,
+  RelPerformanceRow,
+  TransactionRow,
 } from './types.js';
 import { logger } from '../../lib/logger.js';
 import { AppError } from '../../lib/errors.js';
@@ -19,8 +27,8 @@ import { PeeredgeSession } from './PeeredgeSession.js';
  *   - GET  /api/v2/dashboard/statistics|graphs → switch-WIDE aggregates
  *
  * PENDING (needs one confirm with live admin creds): the per-relationship-by-ID
- * metrics endpoint. Until confirmed, getSummary/getOverview return an empty shape
- * in rest mode (see mapRelationship* TODOs). The relationship LIST is already live.
+ * metrics endpoints. Until confirmed, the per-relationship readers return empty
+ * shapes in rest mode. The relationship LIST is already live.
  */
 export class AdminRestClient implements SwitchDataClient {
   private readonly base: string;
@@ -51,53 +59,70 @@ export class AdminRestClient implements SwitchDataClient {
   }
 
   async getSummary(relationshipId: string): Promise<DashboardSummary> {
-    const row = await this.fetchRelationshipRow(relationshipId);
-    const n = (k: string) => Number(row?.[k] ?? 0);
+    // TODO(confirm-with-creds): per-relationship statistics endpoint.
+    this.pending('summary', relationshipId);
     return {
       date: new Date().toISOString().slice(0, 10),
-      dailyMinutes: n('minutes'),
-      dailyAttempts: n('attempts'),
-      dailyAttemptsTarget: n('attempts'),
-      dailyPrv: n('ppma'),
-      dailyPrvTarget: n('ppma'),
-      activePorts: 0, // per-relationship ports: confirm endpoint
+      runningBalance: 0,
+      dailyMinutes: 0,
+      dailyAttempts: 0,
+      dailyAsr: 0,
+      dailyAloc: null,
     };
   }
 
   async getOverview(relationshipId: string, query: MetricsQuery): Promise<OverviewSeries> {
-    // TODO: confirm the per-relationship graph endpoint with live admin creds.
-    logger.warn({ relationshipId }, 'per-relationship overview endpoint pending confirmation');
+    this.pending('overview', relationshipId);
     return {
       direction: query.direction,
       metric: query.metric ?? 'minutes',
       granularityMinutes: 15,
-      series: [
-        { label: 'Today', points: [] },
-        { label: 'Yesterday', points: [] },
-        { label: 'Last week', points: [] },
-      ],
+      series: [],
     };
   }
 
-  async getPerformance(
+  async getRelPerformance(
     relationshipId: string,
-    _direction: 'termination' | 'origination',
-  ): Promise<PerformanceRow[]> {
-    // TODO(confirm-with-creds): GET /relationship_performance/level1 (per trunk group)
-    // filtered to this relationship. Empty until the endpoint is confirmed live.
-    logger.warn({ relationshipId }, 'per-relationship performance endpoint pending confirmation');
+    _direction: Direction,
+    _role: PartyRole,
+  ): Promise<RelPerformanceRow[]> {
+    // TODO(confirm-with-creds): GET /relationship_performance/... filtered to this relationship.
+    this.pending('relationship-performance', relationshipId);
     return [];
   }
 
-  /**
-   * Best-effort per-relationship performance row. The switch exposes
-   * relationship_performance; the exact per-ID filter is confirmed live. Returns
-   * null until wired, so getSummary degrades to zeros rather than wrong numbers.
-   */
-  private async fetchRelationshipRow(_relationshipId: string): Promise<Record<string, unknown> | null> {
-    // TODO(confirm-with-creds): call the per-relationship performance endpoint and
-    // return this relationship's row. Left null intentionally until confirmed.
-    return null;
+  async getNumbering(relationshipId: string): Promise<NumberingRow[]> {
+    this.pending('numbering', relationshipId);
+    return [];
+  }
+
+  async getCdrs(relationshipId: string, _direction: Direction): Promise<CdrRow[]> {
+    this.pending('cdrs', relationshipId);
+    return [];
+  }
+
+  async getRates(relationshipId: string): Promise<RateRow[]> {
+    this.pending('rates', relationshipId);
+    return [];
+  }
+
+  async getInvoices(relationshipId: string): Promise<InvoiceRow[]> {
+    this.pending('invoices', relationshipId);
+    return [];
+  }
+
+  async getTransactions(relationshipId: string): Promise<TransactionRow[]> {
+    this.pending('transactions', relationshipId);
+    return [];
+  }
+
+  async getPayments(relationshipId: string): Promise<PaymentRow[]> {
+    this.pending('payments', relationshipId);
+    return [];
+  }
+
+  private pending(what: string, relationshipId: string): void {
+    logger.warn({ what, relationshipId }, 'per-relationship endpoint pending confirmation with live admin creds');
   }
 
   // --- HTTP with re-auth on 401 -----------------------------------------
