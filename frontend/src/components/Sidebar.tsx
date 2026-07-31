@@ -84,8 +84,8 @@ export function Sidebar({ visible = false, onClose }: { visible?: boolean; onClo
   return (
     <aside className={`sidebar ${visible ? 'sidebar-open' : ''}`}>
       <div className="brand-mark sidebar-brand">
-        <span className="brand-logo">E</span>
-        <span className="brand-text"><span className="brand-name">{brand.name}</span><span className="brand-sub">{brand.productName}</span></span>
+        <span className="brand-symbol">))</span>
+        <span className="brand-text"><span className="brand-name">{brand.name}</span></span>
         <button className="sidebar-close" aria-label="Close navigation" onClick={onClose}>×</button>
       </div>
       <nav>
@@ -119,10 +119,6 @@ export function Sidebar({ visible = false, onClose }: { visible?: boolean; onClo
           </div>
         ))}
       </nav>
-      <div className="sidebar-status">
-        <div className="status-icon"><span className="status-dot" /></div>
-        <div><strong>All systems operational</strong><span>Global voice network</span></div>
-      </div>
     </aside>
   );
 }

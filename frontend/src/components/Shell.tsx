@@ -34,16 +34,12 @@ export function Shell({ title, children }: { title: string; children: ReactNode 
               <span />
               <span />
             </button>
-            <div>
-              <span className="page-eyebrow">Carrier workspace</span>
-              <h1>{title}</h1>
-            </div>
+            <h1>{title}</h1>
           </div>
           <div className="topbar-right">
             <div className="network-summary">
-              <span className="live-status"><span className="status-dot" /> Network live</span>
-              <span className="topstat"><b>0</b> Calls</span>
-              <span className="topstat"><b>0</b> CPS</span>
+              <span className="topstat"><span className="meter-ring" /><b>0</b> Calls</span>
+              <span className="topstat"><span className="meter-ring" /><b>0</b> CPS</span>
             </div>
             <span className="clock">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>

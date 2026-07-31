@@ -29,33 +29,28 @@ export function Dashboard() {
   }, [tab]);
 
   const metrics = [
-    { icon: '$', label: 'Running Balance', value: summary ? money(summary.runningBalance) : '—', meta: 'Current account position', featured: true },
-    { icon: 'M', label: 'Daily Minutes', value: summary ? fmt(summary.dailyMinutes) : '—', meta: 'Connected traffic' },
-    { icon: 'A', label: 'Daily Attempts', value: summary ? fmt(summary.dailyAttempts) : '—', meta: 'Total call attempts' },
-    { icon: '%', label: 'Daily ASR', value: summary ? `${summary.dailyAsr.toFixed(2)}%` : '—', meta: 'Answer-seizure ratio' },
-    { icon: 'T', label: 'Daily ALOC', value: summary ? (summary.dailyAloc === null ? 'N / A' : summary.dailyAloc.toFixed(2)) : '—', meta: 'Average call duration' },
+    { label: 'Running Balance', value: summary ? money(summary.runningBalance) : '—' },
+    { label: 'Daily Minutes', value: summary ? fmt(summary.dailyMinutes) : '—' },
+    { label: 'Daily Attempts', value: summary ? fmt(summary.dailyAttempts) : '—' },
+    { label: 'Daily ASR', value: summary ? `${summary.dailyAsr.toFixed(2)}%` : '—' },
+    { label: 'Daily ALOC', value: summary ? (summary.dailyAloc === null ? 'N / A' : summary.dailyAloc.toFixed(2)) : '—' },
   ];
 
   return (
     <Shell title="Dashboard">
       {error && <div className="alert alert-error">{error}</div>}
-      <section className="dashboard-intro">
-        <div><span className="section-kicker">Today's performance</span><h2>Network at a glance</h2><p>Live commercial and traffic signals across your carrier relationship.</p></div>
-        <div className="dashboard-date"><span className="status-dot" /> Data refreshes automatically</div>
-      </section>
-
       <section className="kpi-strip">
         {metrics.map((metric) => (
-          <div className={`kpi ${metric.featured ? 'kpi-featured' : ''}`} key={metric.label}>
-            <div className="kpi-icon">{metric.icon}</div><div className="kpi-label">{metric.label}</div>
-            <div className="kpi-value">{metric.value}</div><div className="kpi-meta">{metric.meta}</div>
+          <div className="kpi" key={metric.label}>
+            <div className="kpi-label">{metric.label}</div>
+            <div className="kpi-value">{metric.value}</div>
           </div>
         ))}
       </section>
 
       <section className="panel chart-panel">
         <div className="panel-head panel-head-left">
-          <div><span className="section-kicker">Traffic analytics</span><h2>Overview</h2></div>
+          <h2>Overview</h2>
           <select className="inline-select" defaultValue="all-day" aria-label="Period"><option value="all-day">All day</option></select>
         </div>
         <div className="tabs chart-tabs">

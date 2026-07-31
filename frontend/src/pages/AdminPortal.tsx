@@ -60,7 +60,7 @@ export function AdminPortal() {
     <div className="admin-shell">
       <header className="topbar">
         <div className="brand-mark">
-          <span className="brand-logo">E</span>
+          <span className="brand-symbol">))</span>
           <div>
             <div className="brand-name">{brand.name} Admin</div>
             <div className="brand-sub">User &amp; relationship management</div>
