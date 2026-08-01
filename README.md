@@ -1,55 +1,59 @@
 # EasDial Carrier Portal
 
-A carrier-facing reporting portal (termination / origination performance) for the
-**EasDial** brand. It is an independent application you own and host — it consumes the
-same underlying metrics as the Peeredge carrier portal through the **PeerEdge REST API**
-(OAS v3), stores them in your own database, and serves a branded dashboard with its own
-carrier invite → password-reset → login flow.
+An independent, EasDial-branded carrier reporting portal with a clean white-and-blue interface. It mirrors the useful workflows of the reference carrier portal while keeping EasDial authentication, authorization, and deployment under your control.
 
-> **Why not `carrier-easdial.peeredge.com`?** `peeredge.com` is 46 Labs' domain; only they
-> can create hostnames under it. This app is designed to run on **your own domain**, e.g.
-> `carrier.easdial.com`. See `ARCHITECTURE.md`.
+## Current capabilities
 
-## Status: Phase 1 (foundation)
-
-Runs **today** against a built-in mock data source that mirrors the metrics shown in the
-Peeredge dashboard (daily minutes, attempts, PRV, ports, termination time-series). Swapping
-in live Peeredge data is a **single adapter + env change** — no rewrites. See
-`backend/src/adapters/peeredge/`.
+- Secure EasDial login and tenant-scoped access tokens.
+- Dashboard KPIs and origination/termination overview charts.
+- Relationship performance and numbering reports.
+- Termination/origination CDR diagnostics, live calls, and export history.
+- Rates, invoices, carrier transactions, and PayPal history.
+- Responsive white interface using the bundled Inter variable font.
+- Three data-source modes: `mock`, switch-admin `rest`, and verified single-carrier `relationship`.
 
 ## Quick start
 
-```bash
-# 1. Backend
+```powershell
+# Backend
 cd backend
-cp .env.example .env          # fill in secrets (never commit .env)
+Copy-Item .env.example .env
 npm install
-npm run dev                   # http://localhost:4000  (uses PEEREDGE_SOURCE=mock)
+npm run dev
 
-# 2. Frontend (new terminal)
+# Frontend (a second terminal)
 cd frontend
-cp .env.example .env
+Copy-Item .env.example .env
 npm install
-npm run dev                   # http://localhost:5173
-
-# Or the whole stack (adds Postgres):
-docker compose up --build
+npm run dev
 ```
 
-Default demo login is seeded by the mock auth store — see backend startup logs.
+The frontend runs at `http://localhost:5173`; the backend defaults to `http://localhost:4000`. The mock-mode demo login is printed by the backend at startup.
 
-## What's implemented
+## Live relationship mode
 
-- PeerEdge data **adapter** (interface + mock impl + REST stub) — swap via `PEEREDGE_SOURCE`.
-- Backend REST API: health, auth (`invite` / `set-password` / `login`), tenant-scoped metrics.
-- JWT auth (access token), bcrypt password hashing, Zod input validation, central error handling.
-- React dashboard replicating the KPI tiles + Today/Yesterday/Last-week termination chart, EasDial-branded.
-- Postgres schema + docker-compose for the full stack.
+Set these values only in `backend/.env`; never commit the real credentials:
 
-## What's next (Phase 2+)
+```dotenv
+PEEREDGE_SOURCE=relationship
+PEEREDGE_BASE_URL=https://api-dialphone.peeredge.com
+PEEREDGE_SLUG=carrier-dialphone
+PEEREDGE_RELATIONSHIP_USERNAME=your_username
+PEEREDGE_RELATIONSHIP_PASSWORD=your_password
+PEEREDGE_RELATIONSHIP_NAME=Your Relationship Name
+PEEREDGE_RELATIONSHIP_LOGIN_PATH=/login
+```
 
-- Wire `RestPeeredgeClient` to the real PeerEdge Swagger endpoints (needs API credentials from 46 Labs).
-- Ingestion worker to poll/persist metrics on a schedule (or ingest CDRs over SFTP).
-- Refresh-token rotation, email delivery provider, per-relationship RBAC, audit logging.
+The backend logs in server-side, keeps the upstream token in memory, refreshes it after expiry or authorization failure, and returns only normalized portal data to the browser. See [PEEREDGE_API.md](PEEREDGE_API.md) for the audited endpoint mapping.
 
-See `ARCHITECTURE.md` for the full design and the security checklist.
+## Production checks
+
+```powershell
+cd backend
+npm run build
+
+cd ..\frontend
+npm run build
+```
+
+Use a strong `JWT_SECRET`, replace the seeded admin password, keep all `.env` files out of Git, and serve both applications over HTTPS. See [ARCHITECTURE.md](ARCHITECTURE.md) for the system design and security checklist.

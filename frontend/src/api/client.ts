@@ -74,6 +74,23 @@ export interface CdrRow {
   rate: number;
 }
 
+export interface LiveCallRow {
+  relationship: string;
+  trunkGroup: string;
+  start: string;
+  ani: string;
+  dnis: string;
+  duration: number;
+}
+
+export interface CdrExportRow {
+  exportName: string;
+  exportDate: string;
+  status: string;
+  period: string;
+  exportUser: string;
+}
+
 export interface RateRow {
   name: string;
   trunkGroups: number;
@@ -168,6 +185,8 @@ export const api = {
     request<RelPerformanceRow[]>(`/metrics/relationship-performance?direction=${direction}&role=${role}`),
   numbering: () => request<NumberingRow[]>('/metrics/numbering'),
   cdrs: (direction: Direction) => request<CdrRow[]>(`/metrics/cdrs?direction=${direction}`),
+  liveCalls: () => request<LiveCallRow[]>('/metrics/live-calls'),
+  cdrExports: () => request<CdrExportRow[]>('/metrics/cdr-exports'),
   rates: () => request<RateRow[]>('/metrics/rates'),
   invoices: () => request<InvoiceRow[]>('/metrics/invoices'),
   transactions: () => request<TransactionRow[]>('/metrics/transactions'),

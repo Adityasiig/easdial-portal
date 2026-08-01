@@ -137,6 +137,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .search-input { width: min(390px, 100%); }
 .toolbar-actions { display: flex; gap: 10px; }
 .report-table, .admin-table { width: 100%; border-collapse: collapse; color: #222b39; font-size: 11.5px; font-weight: 400; }
+.table-scroll { width: 100%; overflow-x: auto; scrollbar-width: thin; scrollbar-color: #cbd3df transparent; }
+.table-scroll .report-table { min-width: 860px; }
+.compact-skeleton { height: 150px; margin-top: 10px; }
+.diagnostic-filters .control-select, .diagnostic-filters .control-input { min-width: 190px; flex: 1 1 190px; }
 .report-table th, .report-table td, .admin-table th, .admin-table td { height: 46px; padding: 9px 12px; border-bottom: 1px solid var(--border-soft); white-space: nowrap; }
 .report-table thead th, .admin-table th { height: 40px; color: #526176; background: #f5f7fa; font-size: 10px; font-weight: 500; letter-spacing: .04em; text-align: left; text-transform: uppercase; }
 .report-table tbody tr:hover, .admin-table tbody tr:hover { background: #fafbfc; }

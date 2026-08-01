@@ -16,7 +16,7 @@ const schema = z.object({
 
   // ---- Data source ----
   // "mock" (synthetic, no creds) or "rest" (live DialPhone admin API).
-  PEEREDGE_SOURCE: z.enum(['mock', 'rest']).default('mock'),
+  PEEREDGE_SOURCE: z.enum(['mock', 'rest', 'relationship']).default('mock'),
   PEEREDGE_BASE_URL: z.string().url().optional().or(z.literal('')), // https://api-<slug>.peeredge.com
   PEEREDGE_SLUG: z.string().default('dialphone'),
   PEEREDGE_BRAND_PREFIX: z.string().default('ED'), // relationships shown = <prefix>- ...
@@ -25,6 +25,12 @@ const schema = z.object({
   PEEREDGE_ADMIN_EMAIL: z.string().optional(),
   PEEREDGE_ADMIN_PASSWORD: z.string().optional(),
   PEEREDGE_ADMIN_LOGIN_PATH: z.string().default('/api/v2/login'),
+
+  // ---- Single relationship login (verified carrier-portal contract) ----
+  PEEREDGE_RELATIONSHIP_USERNAME: z.string().optional(),
+  PEEREDGE_RELATIONSHIP_PASSWORD: z.string().optional(),
+  PEEREDGE_RELATIONSHIP_NAME: z.string().default('EasDial Relationship'),
+  PEEREDGE_RELATIONSHIP_LOGIN_PATH: z.string().default('/login'),
 
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
 });
@@ -43,6 +49,16 @@ if (env.PEEREDGE_SOURCE === 'rest') {
     // eslint-disable-next-line no-console
     console.error(
       'PEEREDGE_SOURCE=rest requires PEEREDGE_BASE_URL, PEEREDGE_ADMIN_EMAIL, PEEREDGE_ADMIN_PASSWORD',
+    );
+    process.exit(1);
+  }
+}
+
+if (env.PEEREDGE_SOURCE === 'relationship') {
+  if (!env.PEEREDGE_BASE_URL || !env.PEEREDGE_RELATIONSHIP_USERNAME || !env.PEEREDGE_RELATIONSHIP_PASSWORD) {
+    // eslint-disable-next-line no-console
+    console.error(
+      'PEEREDGE_SOURCE=relationship requires PEEREDGE_BASE_URL, PEEREDGE_RELATIONSHIP_USERNAME, PEEREDGE_RELATIONSHIP_PASSWORD',
     );
     process.exit(1);
   }

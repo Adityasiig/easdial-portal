@@ -75,6 +75,25 @@ export interface CdrRow {
   rate: number;
 }
 
+/** Call Diagnostic → Live Calls row. */
+export interface LiveCallRow {
+  relationship: string;
+  trunkGroup: string;
+  start: string;
+  ani: string;
+  dnis: string;
+  duration: number;
+}
+
+/** Call Diagnostic → CDR Export row. */
+export interface CdrExportRow {
+  exportName: string;
+  exportDate: string;
+  status: string;
+  period: string;
+  exportUser: string;
+}
+
 /** Accounting → View Rates row. */
 export interface RateRow {
   name: string;

@@ -58,6 +58,16 @@ export async function metricsRoutes(app: FastifyInstance, authService: AuthServi
     return getSwitchClient().getCdrs(relationshipId, direction);
   });
 
+  app.get('/metrics/live-calls', async (req) => {
+    const { relationshipId } = scope(req);
+    return getSwitchClient().getLiveCalls(relationshipId);
+  });
+
+  app.get('/metrics/cdr-exports', async (req) => {
+    const { relationshipId } = scope(req);
+    return getSwitchClient().getCdrExports(relationshipId);
+  });
+
   // Accounting
   app.get('/metrics/rates', async (req) => {
     const { relationshipId } = scope(req);

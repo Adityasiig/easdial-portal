@@ -1,9 +1,11 @@
 import type { SwitchDataClient } from './SwitchDataClient.js';
 import type {
   CdrRow,
+  CdrExportRow,
   DashboardSummary,
   Direction,
   InvoiceRow,
+  LiveCallRow,
   MetricsQuery,
   NamedSeries,
   NumberingRow,
@@ -136,6 +138,23 @@ export class MockSwitchClient implements SwitchDataClient {
         rate: Math.round((0.002 + (s % 40) / 10_000) * 100_000) / 100_000,
       };
     });
+  }
+
+  async getLiveCalls(_relationshipId: string): Promise<LiveCallRow[]> {
+    return [];
+  }
+
+  async getCdrExports(relationshipId: string): Promise<CdrExportRow[]> {
+    const seed = this.seedFor(relationshipId + 'export');
+    return [
+      {
+        exportName: `CDR-${2026_000 + seed}`,
+        exportDate: this.recentDate(seed % 12),
+        status: 'Completed',
+        period: `${this.recentDate((seed % 12) + 1)} — ${this.recentDate(seed % 12)}`,
+        exportUser: 'system',
+      },
+    ];
   }
 
   async getRates(relationshipId: string): Promise<RateRow[]> {

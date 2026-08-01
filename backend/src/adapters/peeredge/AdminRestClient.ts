@@ -1,9 +1,11 @@
 import type { SwitchDataClient } from './SwitchDataClient.js';
 import type {
   CdrRow,
+  CdrExportRow,
   DashboardSummary,
   Direction,
   InvoiceRow,
+  LiveCallRow,
   MetricsQuery,
   NumberingRow,
   OverviewSeries,
@@ -98,6 +100,16 @@ export class AdminRestClient implements SwitchDataClient {
 
   async getCdrs(relationshipId: string, _direction: Direction): Promise<CdrRow[]> {
     this.pending('cdrs', relationshipId);
+    return [];
+  }
+
+  async getLiveCalls(relationshipId: string): Promise<LiveCallRow[]> {
+    this.pending('live-calls', relationshipId);
+    return [];
+  }
+
+  async getCdrExports(relationshipId: string): Promise<CdrExportRow[]> {
+    this.pending('cdr-exports', relationshipId);
     return [];
   }
 

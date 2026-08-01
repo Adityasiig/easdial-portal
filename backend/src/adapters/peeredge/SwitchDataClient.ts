@@ -1,8 +1,10 @@
 import type {
   CdrRow,
+  CdrExportRow,
   DashboardSummary,
   Direction,
   InvoiceRow,
+  LiveCallRow,
   MetricsQuery,
   NumberingRow,
   OverviewSeries,
@@ -37,6 +39,12 @@ export interface SwitchDataClient {
 
   /** Call Diagnostic CDR rows. */
   getCdrs(relationshipId: string, direction: Direction): Promise<CdrRow[]>;
+
+  /** Call Diagnostic → Live Calls rows. */
+  getLiveCalls(relationshipId: string): Promise<LiveCallRow[]>;
+
+  /** Call Diagnostic → generated CDR exports. */
+  getCdrExports(relationshipId: string): Promise<CdrExportRow[]>;
 
   /** Accounting → View Rates rows. */
   getRates(relationshipId: string): Promise<RateRow[]>;

@@ -18,7 +18,9 @@ export interface PeeredgeAuthConfig {
   slug: string; // <slug> (used for Referer)
   loginPath: string; // /api/v2/login (admin) or /api/v2/relationship/auth/login (carrier)
   email?: string;
+  username?: string;
   password?: string;
+  loginShape?: 'admin' | 'relationship';
   sessionCookie?: string; // fallback: use a raw Cookie header instead of login
 }
 
@@ -66,9 +68,10 @@ export class PeeredgeSession {
   }
 
   private async login(): Promise<void> {
-    const { baseUrl, loginPath, email, password } = this.cfg;
-    if (!email || !password) {
-      throw new AppError(500, 'peeredge_login_misconfig', 'PEEREDGE_EMAIL / PEEREDGE_PASSWORD not set');
+    const { baseUrl, loginPath, email, username, password } = this.cfg;
+    const identity = this.cfg.loginShape === 'relationship' ? username : email;
+    if (!identity || !password) {
+      throw new AppError(500, 'peeredge_login_misconfig', 'Peeredge identity or password is not configured');
     }
     const url = `${baseUrl.replace(/\/$/, '')}${loginPath}`;
     let res: Response;
@@ -76,7 +79,11 @@ export class PeeredgeSession {
       res = await fetch(url, {
         method: 'POST',
         headers: { ...this.baseHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user: { email, password } }),
+        body: JSON.stringify(
+          this.cfg.loginShape === 'relationship'
+            ? { user_name: identity, password }
+            : { user: { email: identity, password } },
+        ),
       });
     } catch (err) {
       logger.error({ err }, 'PeerEdge login request failed');
