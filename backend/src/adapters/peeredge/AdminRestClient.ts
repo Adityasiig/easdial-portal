@@ -1,5 +1,7 @@
 import type { SwitchDataClient } from './SwitchDataClient.js';
 import type {
+  CdrFilterOptions,
+  CdrQuery,
   CdrRow,
   CdrExportRow,
   DashboardSummary,
@@ -98,7 +100,12 @@ export class AdminRestClient implements SwitchDataClient {
     return [];
   }
 
-  async getCdrs(relationshipId: string, _direction: Direction): Promise<CdrRow[]> {
+  async getCdrFilters(relationshipId: string, _direction: Direction): Promise<CdrFilterOptions> {
+    this.pending('cdr-filters', relationshipId);
+    return { locations: [], trunkGroups: [] };
+  }
+
+  async getCdrs(relationshipId: string, _query: CdrQuery): Promise<CdrRow[]> {
     this.pending('cdrs', relationshipId);
     return [];
   }

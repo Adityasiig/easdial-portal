@@ -75,6 +75,30 @@ export interface CdrRow {
   rate: number;
 }
 
+export type CdrStatus = 'all' | 'completed' | 'failed';
+
+export interface CdrQuery {
+  direction: Direction;
+  startTime: string;
+  endTime: string;
+  location?: string;
+  trunkGroupId?: string;
+  trunkGroupLabel?: string;
+  ani?: string;
+  dnis?: string;
+  status: CdrStatus;
+}
+
+export interface CdrTrunkGroup {
+  id: string;
+  label: string;
+}
+
+export interface CdrFilterOptions {
+  locations: string[];
+  trunkGroups: CdrTrunkGroup[];
+}
+
 /** Call Diagnostic → Live Calls row. */
 export interface LiveCallRow {
   relationship: string;

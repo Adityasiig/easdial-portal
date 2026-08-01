@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
-import { metricsQuerySchema } from '../schemas/auth.js';
+import { cdrQuerySchema, metricsQuerySchema } from '../schemas/auth.js';
 import type { AuthService } from '../services/authService.js';
 import { requireAuth } from '../middleware/auth.js';
 import { getSwitchClient } from '../adapters/peeredge/index.js';
@@ -53,9 +53,15 @@ export async function metricsRoutes(app: FastifyInstance, authService: AuthServi
   });
 
   // Call Diagnostic
-  app.get('/metrics/cdrs', async (req) => {
+  app.get('/metrics/cdr-filters', async (req) => {
     const { relationshipId, direction } = scope(req);
-    return getSwitchClient().getCdrs(relationshipId, direction);
+    return getSwitchClient().getCdrFilters(relationshipId, direction);
+  });
+
+  app.get('/metrics/cdrs', async (req) => {
+    const { relationshipId } = scope(req);
+    const query = cdrQuerySchema.parse(req.query);
+    return getSwitchClient().getCdrs(relationshipId, query);
   });
 
   app.get('/metrics/live-calls', async (req) => {

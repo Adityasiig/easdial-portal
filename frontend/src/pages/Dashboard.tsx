@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { api, type DashboardSummary, type OverviewSeries } from '../api/client';
 import { Shell } from '../components/Shell';
 import { OverviewChart } from '../components/OverviewChart';
 import { brand } from '../theme/brand';
 
 type Tab = { key: string; direction: 'termination' | 'origination'; metric: 'minutes' | 'attempts' };
+type PeriodHours = 24 | 12 | 6 | 3 | 1;
 
 const TABS: Tab[] = [
   { key: 'Termination Minutes', direction: 'termination', metric: 'minutes' },
@@ -19,6 +20,7 @@ const money = (n: number) => `$${n < 0 ? '-' : ''}${Math.abs(n).toFixed(2)}`;
 export function Dashboard() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [tab, setTab] = useState<Tab>(TABS[0]);
+  const [periodHours, setPeriodHours] = useState<PeriodHours>(24);
   const [overview, setOverview] = useState<OverviewSeries | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,6 +29,18 @@ export function Dashboard() {
     setOverview(null);
     api.overview(tab.direction, tab.metric).then(setOverview).catch((e) => setError(e.message));
   }, [tab]);
+
+  const visibleOverview = useMemo(() => {
+    if (!overview || periodHours === 24) return overview;
+    const visiblePointCount = Math.ceil((periodHours * 60) / overview.granularityMinutes);
+    return {
+      ...overview,
+      series: overview.series.map((series) => ({
+        ...series,
+        points: series.points.slice(-visiblePointCount),
+      })),
+    };
+  }, [overview, periodHours]);
 
   const metrics = [
     { label: 'Running balance', value: summary ? money(summary.runningBalance) : '—', context: 'Current account balance' },
@@ -66,8 +80,19 @@ export function Dashboard() {
             <h2>Network overview</h2>
           </div>
           <div className="chart-controls">
-            <span className="interval-label">15 min intervals</span>
-            <select className="inline-select" defaultValue="all-day" aria-label="Period"><option value="all-day">All day</option></select>
+            <span className="interval-label">{visibleOverview?.granularityMinutes ?? 15} min intervals</span>
+            <select
+              className="inline-select"
+              value={periodHours}
+              aria-label="Period"
+              onChange={(event) => setPeriodHours(Number(event.target.value) as PeriodHours)}
+            >
+              <option value={24}>All day</option>
+              <option value={12}>Last 12 hours</option>
+              <option value={6}>Last 6 hours</option>
+              <option value={3}>Last 3 hours</option>
+              <option value={1}>Last hour</option>
+            </select>
           </div>
         </div>
         <div className="tabs chart-tabs">
@@ -75,9 +100,9 @@ export function Dashboard() {
             <button key={item.key} className={`tab ${item.key === tab.key ? 'tab-active' : ''}`} onClick={() => setTab(item)}>{item.key}</button>
           ))}
         </div>
-        {overview ? <OverviewChart data={overview} /> : <div className="chart-skeleton" />}
+        {visibleOverview ? <OverviewChart data={visibleOverview} /> : <div className="chart-skeleton" />}
         <div className="legend">
-          {overview?.series.map((series, index) => (
+          {visibleOverview?.series.map((series, index) => (
             <span key={series.label} className="legend-item"><span className="legend-swatch" style={{ background: brand.seriesPalette[index % brand.seriesPalette.length] }} />{series.label}</span>
           ))}
         </div>

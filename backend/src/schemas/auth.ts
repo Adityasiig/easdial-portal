@@ -24,3 +24,20 @@ export const metricsQuerySchema = z.object({
   role: z.enum(['customer', 'vendor']).default('customer'),
   relationshipId: z.string().optional(), // admins may preview a specific relationship
 });
+
+export const cdrQuerySchema = z.object({
+  direction: z.enum(['termination', 'origination']).default('termination'),
+  startTime: z.string().datetime(),
+  endTime: z.string().datetime(),
+  location: z.string().trim().max(80).optional(),
+  trunkGroupId: z.string().trim().max(120).optional(),
+  trunkGroupLabel: z.string().trim().max(240).optional(),
+  ani: z.string().trim().max(64).optional(),
+  dnis: z.string().trim().max(64).optional(),
+  status: z.enum(['all', 'completed', 'failed']).default('all'),
+}).superRefine((value, ctx) => {
+  const start = new Date(value.startTime).getTime();
+  const end = new Date(value.endTime).getTime();
+  if (end <= start) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['endTime'], message: 'End time must be after start time' });
+  if (end - start > 31 * 24 * 60 * 60 * 1000) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['endTime'], message: 'CDR range cannot exceed 31 days' });
+});

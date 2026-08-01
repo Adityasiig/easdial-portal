@@ -29,6 +29,7 @@ const compact = (n: number) =>
 
 export function OverviewChart({ data }: { data: OverviewSeries }) {
   const rows = toRows(data);
+  const tickInterval = Math.max(0, Math.floor(rows.length / 8) - 1);
   return (
     <div style={{ width: '100%', height: 340 }} aria-label="Traffic overview chart">
       <ResponsiveContainer>
@@ -37,7 +38,7 @@ export function OverviewChart({ data }: { data: OverviewSeries }) {
           <XAxis
             dataKey="time"
             tick={{ fontSize: 10, fill: '#929daf' }}
-            interval={11}
+            interval={tickInterval}
             axisLine={false}
             tickLine={false}
           />

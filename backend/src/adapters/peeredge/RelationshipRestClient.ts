@@ -1,6 +1,8 @@
 import type { SwitchDataClient } from './SwitchDataClient.js';
 import type {
   CdrExportRow,
+  CdrFilterOptions,
+  CdrQuery,
   CdrRow,
   DashboardSummary,
   Direction,
@@ -104,33 +106,63 @@ export class RelationshipRestClient implements SwitchDataClient {
     }));
   }
 
-  async getCdrs(_relationshipId: string, direction: Direction): Promise<CdrRow[]> {
+  async getCdrFilters(_relationshipId: string, _direction: Direction): Promise<CdrFilterOptions> {
     const carrierId = await this.getCarrierId();
-    const groups = await this.getJson<Array<Record<string, string>>>(`/trunk_groups/complete_names?trunk_group_type=0&carrier_id=${encodeURIComponent(carrierId)}`);
-    const first = Object.entries(groups[0] ?? {})[0];
-    if (!first) return [];
-    const [trunkId, label] = first;
-    const selectedColumn = direction === 'termination'
-      ? (label.includes('Customer') ? 'orig_trunk_group_id' : 'term_trunk_group_id')
-      : (label.includes('Customer') ? 'term_trunk_group_id' : 'orig_trunk_group_id');
-    const locations = await this.getJson<Array<{ location?: string }>>('/locations/server_locations');
-    const { start, end } = this.todayBounds();
-    const typeColumns = direction === 'termination'
+    const [locationPayload, trunkPayload] = await Promise.all([
+      this.getJson<unknown>('/locations/server_locations'),
+      this.getJson<unknown>(`/trunk_groups/complete_names?trunk_group_type=0&carrier_id=${encodeURIComponent(carrierId)}`),
+    ]);
+    return {
+      locations: this.normalizeLocations(locationPayload),
+      trunkGroups: this.normalizeTrunkGroups(trunkPayload),
+    };
+  }
+
+  async getCdrs(_relationshipId: string, query: CdrQuery): Promise<CdrRow[]> {
+    const typeColumns = query.direction === 'termination'
       ? [{ name: 'orig_trunk_group_type', value: '1' }, { name: 'term_trunk_group_type', value: '2' }]
       : [{ name: 'orig_trunk_group_type', value: '2' }, { name: 'term_trunk_group_type', value: '1' }];
+    const columns: Array<{ name: string; value: string }> = [...typeColumns];
+    let selectedColumn: 'orig_trunk_group_id' | 'term_trunk_group_id' | null = null;
+    if (query.trunkGroupId) {
+      const customerGroup = query.trunkGroupLabel?.toLowerCase().includes('customer') ?? false;
+      selectedColumn = query.direction === 'termination'
+        ? (customerGroup ? 'orig_trunk_group_id' : 'term_trunk_group_id')
+        : (customerGroup ? 'term_trunk_group_id' : 'orig_trunk_group_id');
+      columns.unshift({ name: selectedColumn, value: query.trunkGroupId });
+    }
+    if (query.ani) columns.push({ name: 'from_did', value: query.ani });
+    if (query.dnis) columns.push({ name: 'to_did', value: query.dnis });
+
     const payload = await this.postJson<unknown>('/cdr_diagnostics/search', {
-      call_type: 'A', start_time: start, end_time: end, location: locations[0]?.location ?? 'dallas',
-      columns: [{ name: selectedColumn, value: trunkId }, ...typeColumns],
+      call_type: query.status === 'completed' ? 'C' : query.status === 'failed' ? 'F' : 'A',
+      start_time: query.startTime,
+      end_time: query.endTime,
+      location: query.location ?? 'dallas',
+      columns,
     });
-    return responseRecords(payload).map((row) => {
-      const origination = selectedColumn === 'orig_trunk_group_id';
-      return {
-        dateTime: stringValue(row.call_transaction_time), ani: stringValue(row.from_did), dnis: stringValue(row.to_did),
+    const useOriginationSide = selectedColumn
+      ? selectedColumn === 'orig_trunk_group_id'
+      : query.direction === 'termination';
+    const rows = responseRecords(payload).map((row) => ({
+        dateTime: this.toIso(row.call_transaction_time), ani: stringValue(row.from_did), dnis: stringValue(row.to_did),
         lrn: stringValue(row.lrn_did), releaseCode: stringValue(row.sip_code), releaseCause: stringValue(row.reason ?? row.sip_reason),
         duration: numberValue(row.duration_real),
-        relationshipTrunk: `${stringValue(origination ? row.orig_carrier_name : row.term_carrier_name)} / ${stringValue(origination ? row.orig_trunk_group_name : row.term_trunk_group_name)}`,
-        origJuris: stringValue(row.orig_juris), rate: numberValue(origination ? row.orig_rate : row.term_rate),
-      };
+        relationshipTrunk: `${stringValue(useOriginationSide ? row.orig_carrier_name : row.term_carrier_name)} / ${stringValue(useOriginationSide ? row.orig_trunk_group_name : row.term_trunk_group_name)}`,
+        origJuris: stringValue(row.orig_juris), rate: numberValue(useOriginationSide ? row.orig_rate : row.term_rate),
+      }));
+    const start = new Date(query.startTime).getTime();
+    const end = new Date(query.endTime).getTime();
+    const ani = query.ani?.toLowerCase();
+    const dnis = query.dnis?.toLowerCase();
+    return rows.filter((row) => {
+      const timestamp = new Date(row.dateTime).getTime();
+      if (Number.isFinite(timestamp) && (timestamp < start || timestamp > end)) return false;
+      if (query.status === 'completed' && row.duration === 0) return false;
+      if (query.status === 'failed' && row.duration > 0) return false;
+      if (ani && !row.ani.toLowerCase().includes(ani)) return false;
+      if (dnis && !row.dnis.toLowerCase().includes(dnis)) return false;
+      return true;
     });
   }
 
@@ -139,7 +171,7 @@ export class RelationshipRestClient implements SwitchDataClient {
     return responseRecords(payload).map((row) => ({
       relationship: stringValue(row.relationship_name ?? row.carrier_name ?? row.relationship),
       trunkGroup: stringValue(row.trunk_group_name ?? row.trunk_group),
-      start: stringValue(row.start_time ?? row.started_at ?? row.call_transaction_time),
+      start: this.toIso(row.start_time ?? row.started_at ?? row.call_transaction_time),
       ani: stringValue(row.ani ?? row.from_did),
       dnis: stringValue(row.dnis ?? row.to_did),
       duration: numberValue(row.duration ?? row.duration_real),
@@ -193,6 +225,45 @@ export class RelationshipRestClient implements SwitchDataClient {
     }));
   }
 
+  private normalizeLocations(payload: unknown): string[] {
+    const source = Array.isArray(payload)
+      ? payload
+      : payload && typeof payload === 'object' && Array.isArray((payload as JsonRecord).data)
+        ? (payload as JsonRecord).data as unknown[]
+        : [];
+    const values = source.map((item) => {
+      if (typeof item === 'string') return item;
+      if (!item || typeof item !== 'object') return '';
+      const row = item as JsonRecord;
+      return stringValue(row.location ?? row.server_location ?? row.name ?? row.value);
+    }).filter(Boolean);
+    return [...new Set(values)].sort((a, b) => a.localeCompare(b));
+  }
+
+  private normalizeTrunkGroups(payload: unknown): Array<{ id: string; label: string }> {
+    const source = Array.isArray(payload)
+      ? payload
+      : payload && typeof payload === 'object' && Array.isArray((payload as JsonRecord).data)
+        ? (payload as JsonRecord).data as unknown[]
+        : [payload];
+    const groups: Array<{ id: string; label: string }> = [];
+    for (const item of source) {
+      if (!item || typeof item !== 'object') continue;
+      const row = item as JsonRecord;
+      const id = stringValue(row.id ?? row.trunk_group_id ?? row.value);
+      const label = stringValue(row.complete_name ?? row.trunk_group_name ?? row.name ?? row.label);
+      if (id && label) {
+        groups.push({ id, label });
+        continue;
+      }
+      for (const [key, value] of Object.entries(row)) {
+        if (typeof value === 'string' || typeof value === 'number') groups.push({ id: key, label: String(value) });
+      }
+    }
+    return [...new Map(groups.filter((group) => group.id && group.label).map((group) => [group.id, group])).values()]
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }
+
   private async getCarrierId(): Promise<string> {
     if (this.carrierId) return this.carrierId;
     const response = await this.getJson<{ user?: { carrier_id?: unknown } }>('/me');
@@ -208,8 +279,11 @@ export class RelationshipRestClient implements SwitchDataClient {
 
   private toIso(value: unknown): string {
     const raw = stringValue(value);
-    const parsed = new Date(raw.includes('T') ? raw : raw.replace(' ', 'T') + (raw.endsWith('Z') ? '' : 'Z'));
-    return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
+    if (!raw) return '';
+    const normalized = raw.includes('T') ? raw : raw.replace(' ', 'T');
+    const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(normalized);
+    const parsed = new Date(hasTimezone ? normalized : `${normalized}Z`);
+    return Number.isNaN(parsed.getTime()) ? raw : parsed.toISOString();
   }
 
   private async get(path: string): Promise<Response> {

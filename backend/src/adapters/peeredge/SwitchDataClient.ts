@@ -1,4 +1,6 @@
 import type {
+  CdrFilterOptions,
+  CdrQuery,
   CdrRow,
   CdrExportRow,
   DashboardSummary,
@@ -38,7 +40,10 @@ export interface SwitchDataClient {
   getNumbering(relationshipId: string): Promise<NumberingRow[]>;
 
   /** Call Diagnostic CDR rows. */
-  getCdrs(relationshipId: string, direction: Direction): Promise<CdrRow[]>;
+  getCdrFilters(relationshipId: string, direction: Direction): Promise<CdrFilterOptions>;
+
+  /** Filtered Call Diagnostic CDR rows. */
+  getCdrs(relationshipId: string, query: CdrQuery): Promise<CdrRow[]>;
 
   /** Call Diagnostic → Live Calls rows. */
   getLiveCalls(relationshipId: string): Promise<LiveCallRow[]>;

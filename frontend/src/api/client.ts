@@ -74,6 +74,25 @@ export interface CdrRow {
   rate: number;
 }
 
+export type CdrStatus = 'all' | 'completed' | 'failed';
+
+export interface CdrQuery {
+  direction: Direction;
+  startTime: string;
+  endTime: string;
+  location?: string;
+  trunkGroupId?: string;
+  trunkGroupLabel?: string;
+  ani?: string;
+  dnis?: string;
+  status: CdrStatus;
+}
+
+export interface CdrFilterOptions {
+  locations: string[];
+  trunkGroups: Array<{ id: string; label: string }>;
+}
+
 export interface LiveCallRow {
   relationship: string;
   trunkGroup: string;
@@ -184,7 +203,14 @@ export const api = {
   relPerformance: (direction: Direction, role: PartyRole) =>
     request<RelPerformanceRow[]>(`/metrics/relationship-performance?direction=${direction}&role=${role}`),
   numbering: () => request<NumberingRow[]>('/metrics/numbering'),
-  cdrs: (direction: Direction) => request<CdrRow[]>(`/metrics/cdrs?direction=${direction}`),
+  cdrFilters: (direction: Direction) => request<CdrFilterOptions>(`/metrics/cdr-filters?direction=${direction}`),
+  cdrs: (query: CdrQuery) => {
+    const params = new URLSearchParams();
+    Object.entries(query).forEach(([key, value]) => {
+      if (value !== undefined && value !== '') params.set(key, String(value));
+    });
+    return request<CdrRow[]>(`/metrics/cdrs?${params}`);
+  },
   liveCalls: () => request<LiveCallRow[]>('/metrics/live-calls'),
   cdrExports: () => request<CdrExportRow[]>('/metrics/cdr-exports'),
   rates: () => request<RateRow[]>('/metrics/rates'),

@@ -1,5 +1,7 @@
 import type { SwitchDataClient } from './SwitchDataClient.js';
 import type {
+  CdrFilterOptions,
+  CdrQuery,
   CdrRow,
   CdrExportRow,
   DashboardSummary,
@@ -107,8 +109,18 @@ export class MockSwitchClient implements SwitchDataClient {
     }));
   }
 
-  async getCdrs(relationshipId: string, direction: Direction): Promise<CdrRow[]> {
-    const seed = this.seedFor(relationshipId + direction + 'cdr');
+  async getCdrFilters(_relationshipId: string, _direction: Direction): Promise<CdrFilterOptions> {
+    return {
+      locations: ['dallas', 'los-angeles'],
+      trunkGroups: [
+        { id: 'usa-sd', label: 'USA SD' },
+        { id: 'usa-sd-static', label: 'USA SD STATIC' },
+      ],
+    };
+  }
+
+  async getCdrs(relationshipId: string, query: CdrQuery): Promise<CdrRow[]> {
+    const seed = this.seedFor(relationshipId + query.direction + 'cdr');
     const rel = this.sample.find((r) => r.id === relationshipId);
     const trunk = `${rel ? rel.name : relationshipId} / USA SD`;
     const causes: Array<[string, string]> = [
@@ -120,7 +132,7 @@ export class MockSwitchClient implements SwitchDataClient {
     ];
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
-    return Array.from({ length: 12 }, (_, i) => {
+    const rows = Array.from({ length: 48 }, (_, i) => {
       const s = (seed + i * 37) % 997;
       const [code, cause] = causes[s % causes.length];
       const answered = code === '16';
@@ -133,10 +145,24 @@ export class MockSwitchClient implements SwitchDataClient {
         releaseCode: code,
         releaseCause: cause,
         duration: answered ? 30 + (s % 600) : 0,
-        relationshipTrunk: trunk,
+        relationshipTrunk: `${trunk}${i % 2 === 0 ? '' : ' STATIC'}`,
         origJuris: s % 3 === 0 ? 'INTERSTATE' : s % 3 === 1 ? 'INTRASTATE' : 'INDETERMINATE',
         rate: Math.round((0.002 + (s % 40) / 10_000) * 100_000) / 100_000,
       };
+    });
+    const start = new Date(query.startTime).getTime();
+    const end = new Date(query.endTime).getTime();
+    const ani = query.ani?.toLowerCase();
+    const dnis = query.dnis?.toLowerCase();
+    return rows.filter((row) => {
+      const timestamp = new Date(row.dateTime).getTime();
+      if (timestamp < start || timestamp > end) return false;
+      if (query.status === 'completed' && row.duration === 0) return false;
+      if (query.status === 'failed' && row.duration > 0) return false;
+      if (ani && !row.ani.toLowerCase().includes(ani)) return false;
+      if (dnis && !row.dnis.toLowerCase().includes(dnis)) return false;
+      if (query.trunkGroupLabel && !row.relationshipTrunk.toLowerCase().endsWith(`/ ${query.trunkGroupLabel.toLowerCase()}`)) return false;
+      return true;
     });
   }
 
