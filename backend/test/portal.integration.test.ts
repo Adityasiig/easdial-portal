@@ -35,6 +35,23 @@ test('admin-created customer is scoped, functional, and revocable', async () => 
     assert.ok(relationships.length > 0);
     const relationship = relationships[0];
 
+    const shortPasswordResponse = await app.inject({
+      method: 'POST',
+      url: '/admin/users',
+      headers: adminHeaders,
+      payload: {
+        email: 'invalid-password@easdial.test',
+        password: 'short',
+        relationshipId: relationship.id,
+        relationshipName: relationship.name,
+      },
+    });
+    assert.equal(shortPasswordResponse.statusCode, 400);
+    assert.equal(
+      shortPasswordResponse.json<{ error: { message: string } }>().error.message,
+      'Password must be at least 8 characters',
+    );
+
     const createResponse = await app.inject({
       method: 'POST',
       url: '/admin/users',

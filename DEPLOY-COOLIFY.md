@@ -49,8 +49,14 @@ PEEREDGE_SOURCE=rest
 PEEREDGE_BASE_URL=https://api-dialphone.peeredge.com
 PEEREDGE_ADMIN_EMAIL=replace_in_coolify
 PEEREDGE_ADMIN_PASSWORD=replace_in_coolify
+PEEREDGE_ADMIN_LOGIN_PATH=/api/v2/login
 PEEREDGE_BRAND_PREFIX=ED
 ```
+
+This is the recommended configuration for EasDial. It was verified against the
+live DialPhone switch with carrier, dashboard, performance, CDR, numbering,
+rate, invoice, transaction, and live-call reads. All customer requests remain
+scoped to the relationship allocated in the EasDial admin portal.
 
 Keep every real credential in Coolify secrets. Never add it to `.env`, Git, a
 commit, or a pull request.

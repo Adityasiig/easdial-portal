@@ -34,7 +34,7 @@ export interface SwitchDataClient {
   getOverview(relationshipId: string, query: MetricsQuery): Promise<OverviewSeries>;
 
   /** Reportings → Relationship Performance rows. */
-  getRelPerformance(relationshipId: string, direction: Direction, role: PartyRole): Promise<RelPerformanceRow[]>;
+  getRelPerformance(relationshipId: string, direction: Direction, role: PartyRole, startTime?: string, endTime?: string): Promise<RelPerformanceRow[]>;
 
   /** Reportings → Numbering rows. */
   getNumbering(relationshipId: string): Promise<NumberingRow[]>;

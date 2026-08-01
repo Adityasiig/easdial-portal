@@ -61,7 +61,7 @@ export class MockSwitchClient implements SwitchDataClient {
   async getOverview(relationshipId: string, query: MetricsQuery): Promise<OverviewSeries> {
     const metric = query.metric ?? 'minutes';
     const seed = this.seedFor(relationshipId + query.direction + metric);
-    const scale = metric === 'attempts' ? 7 : 1;
+    const scale = metric === 'attempts' ? 7 : metric === 'ports' || metric === 'favorite_ports' ? 0.02 : metric === 'cps' ? 0.005 : metric === 'profit' ? 0.001 : 1;
     const rel = this.sample.find((r) => r.id === relationshipId);
     const base = rel ? rel.name.replace(/^ED\s*-?\s*/i, 'ED-') : `Relationship ${relationshipId}`;
     const series: NamedSeries[] = [
@@ -75,6 +75,8 @@ export class MockSwitchClient implements SwitchDataClient {
     relationshipId: string,
     direction: Direction,
     role: PartyRole,
+    _startTime?: string,
+    _endTime?: string,
   ): Promise<RelPerformanceRow[]> {
     const rel = this.sample.find((r) => r.id === relationshipId);
     const base = rel ? rel.name : `Relationship ${relationshipId}`;
@@ -161,6 +163,9 @@ export class MockSwitchClient implements SwitchDataClient {
       if (query.status === 'failed' && row.duration > 0) return false;
       if (ani && !row.ani.toLowerCase().includes(ani)) return false;
       if (dnis && !row.dnis.toLowerCase().includes(dnis)) return false;
+      if (query.releaseCode && row.releaseCode !== query.releaseCode) return false;
+      if (query.minDuration !== undefined && row.duration < query.minDuration) return false;
+      if (query.maxDuration !== undefined && row.duration > query.maxDuration) return false;
       if (query.trunkGroupLabel && !row.relationshipTrunk.toLowerCase().endsWith(`/ ${query.trunkGroupLabel.toLowerCase()}`)) return false;
       return true;
     });

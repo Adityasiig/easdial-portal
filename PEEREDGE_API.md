@@ -1,6 +1,32 @@
-# Peeredge relationship API: observed contract
+# Peeredge API: verified relationship and switch-admin contract
 
-This contract was verified read-only against the authorized carrier portal on 2026-08-01. The relationship API is an internal, undocumented interface and can change without notice. Prefer an official 46 Labs API when one is available.
+This contract was verified read-only against the authorized carrier and switch-admin portals on 2026-08-02. The API is internal and undocumented, so it can change without notice. Prefer an official 46 Labs API when one is available.
+
+## Recommended production mode
+
+EasDial should use switch-admin `rest` mode for multiple customer relationships. The backend logs in once, lists carriers whose names start with the configured `ED` prefix, and applies the allocated carrier ID or its scoped trunk-group IDs to every read. The browser never receives the upstream credentials or token.
+
+- API base: `https://api-dialphone.peeredge.com/api/v2`
+- Login: `POST /login`
+- Carrier list: `GET /carriers`
+- Relationship filter: prefix-aware matching for `ED -`, `ED-`, and `ED ` formats
+
+### Verified switch-admin reads
+
+| Method | Path | Scope used by EasDial |
+|---|---|---|
+| GET | `/carriers` | allocated carrier ID and live balance |
+| GET | `/trunk_groups/by_type_and_location` | carrier/customer trunk groups only |
+| GET | `/dashboard/graphs` | one request per allocated trunk group |
+| GET | `/relationship_performance/level2` and `/level3` | allocated carrier and trunk groups |
+| POST | `/cdr_diagnostics/search` | allocated trunk-group IDs in `columns` |
+| GET | `/routeplan_numberings` | `carrier_id` |
+| GET | `/rate_sheets` | `carrier_id` |
+| GET | `/invoices` | `carrier_id` |
+| GET | `/carrier_payments` | `carrier_id` |
+| GET | `/live_calls` | location plus carrier-name filtering |
+
+The verified CDR request includes `call_type`, `start_time`, `end_time`, `duration_min`, `duration_max`, `is_sanitize`, `location`, and scoped `columns`. EasDial supports ANI, DNIS, SIP release code, SIP call ID, duration range, A/B-leg selection, completion state, trunk group, and GMT date/time range.
 
 ## Authentication
 
@@ -47,4 +73,4 @@ The EasDial `RelationshipRestClient` normalizes these responses into stable inte
 
 ## Safety boundary
 
-The audit did not submit payments, change settings, modify numbering, download customer exports, or mutate customer records. Payment dialogs were inspected and closed without submission.
+The audit did not kill calls, submit payments, change switch settings, modify numbering, download customer exports, or mutate Peeredge customer records. Switch-wide PayPal history and unverified export endpoints remain closed in switch-admin mode to prevent cross-customer exposure.

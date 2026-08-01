@@ -2,6 +2,7 @@
 
 export type Direction = 'termination' | 'origination';
 export type PartyRole = 'customer' | 'vendor';
+export type DashboardMetric = 'minutes' | 'attempts' | 'ports' | 'favorite_ports' | 'cps' | 'profit';
 
 /** A relationship the admin can allocate to a user (ED- filtered). */
 export interface RelationshipRef {
@@ -31,14 +32,14 @@ export interface NamedSeries {
 
 export interface OverviewSeries {
   direction: Direction;
-  metric: 'minutes' | 'attempts';
+  metric: DashboardMetric;
   granularityMinutes: number;
   series: NamedSeries[];
 }
 
 export interface MetricsQuery {
   direction: Direction;
-  metric?: 'minutes' | 'attempts';
+  metric?: DashboardMetric;
 }
 
 /** Reportings → Relationship Performance row. */
@@ -86,6 +87,11 @@ export interface CdrQuery {
   trunkGroupLabel?: string;
   ani?: string;
   dnis?: string;
+  releaseCode?: string;
+  callId?: string;
+  minDuration?: number;
+  maxDuration?: number;
+  includeBLeg?: boolean;
   status: CdrStatus;
 }
 

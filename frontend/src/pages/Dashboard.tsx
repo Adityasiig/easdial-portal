@@ -1,105 +1,81 @@
 import { useEffect, useMemo, useState } from 'react';
-import { api, type DashboardSummary, type OverviewSeries } from '../api/client';
+import { api, type DashboardMetric, type DashboardSummary, type OverviewSeries } from '../api/client';
 import { Shell } from '../components/Shell';
 import { OverviewChart } from '../components/OverviewChart';
 import { brand } from '../theme/brand';
 
-type Tab = { key: string; direction: 'termination' | 'origination'; metric: 'minutes' | 'attempts' };
-type PeriodHours = 24 | 12 | 6 | 3 | 1;
+type Tab = { label: string; direction: 'termination' | 'origination'; metric: DashboardMetric };
+type PeriodHours = 24 | 12 | 6 | 4 | 2;
 
 const TABS: Tab[] = [
-  { key: 'Termination Minutes', direction: 'termination', metric: 'minutes' },
-  { key: 'Origination Minutes', direction: 'origination', metric: 'minutes' },
-  { key: 'Termination Attempts', direction: 'termination', metric: 'attempts' },
-  { key: 'Origination Attempts', direction: 'origination', metric: 'attempts' },
+  { label: 'Termination Minutes', direction: 'termination', metric: 'minutes' },
+  { label: 'Origination Minutes', direction: 'origination', metric: 'minutes' },
+  { label: 'Termination Attempts', direction: 'termination', metric: 'attempts' },
+  { label: 'Origination Attempts', direction: 'origination', metric: 'attempts' },
+  { label: 'Ports', direction: 'termination', metric: 'ports' },
+  { label: 'Favorite Ports', direction: 'termination', metric: 'favorite_ports' },
+  { label: 'CPS', direction: 'termination', metric: 'cps' },
+  { label: 'Profit', direction: 'termination', metric: 'profit' },
 ];
 
-const fmt = (n: number) => Math.round(n).toLocaleString();
-const money = (n: number) => `$${n < 0 ? '-' : ''}${Math.abs(n).toFixed(2)}`;
+const fmt = (value: number) => Math.round(value).toLocaleString();
+const money = (value: number) => `${value < 0 ? '-' : ''}$${Math.abs(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export function Dashboard() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
-  const [tab, setTab] = useState<Tab>(TABS[0]);
+  const [tab, setTab] = useState(TABS[0]);
   const [periodHours, setPeriodHours] = useState<PeriodHours>(24);
   const [overview, setOverview] = useState<OverviewSeries | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => { api.summary().then(setSummary).catch((e) => setError(e.message)); }, []);
+  useEffect(() => { api.summary().then(setSummary).catch((err) => setError(err.message)); }, []);
   useEffect(() => {
     setOverview(null);
-    api.overview(tab.direction, tab.metric).then(setOverview).catch((e) => setError(e.message));
+    setError(null);
+    api.overview(tab.direction, tab.metric).then(setOverview).catch((err) => setError(err.message));
   }, [tab]);
 
   const visibleOverview = useMemo(() => {
     if (!overview || periodHours === 24) return overview;
-    const visiblePointCount = Math.ceil((periodHours * 60) / overview.granularityMinutes);
-    return {
-      ...overview,
-      series: overview.series.map((series) => ({
-        ...series,
-        points: series.points.slice(-visiblePointCount),
-      })),
-    };
+    const count = Math.ceil((periodHours * 60) / overview.granularityMinutes);
+    return { ...overview, series: overview.series.map((series) => ({ ...series, points: series.points.slice(-count) })) };
   }, [overview, periodHours]);
 
   const metrics = [
-    { label: 'Running balance', value: summary ? money(summary.runningBalance) : '—', context: 'Current account balance' },
-    { label: 'Minutes', value: summary ? fmt(summary.dailyMinutes) : '—', context: 'Processed today' },
-    { label: 'Attempts', value: summary ? fmt(summary.dailyAttempts) : '—', context: 'Call attempts today' },
-    { label: 'ASR', value: summary ? `${summary.dailyAsr.toFixed(2)}%` : '—', context: 'Answer-seizure ratio' },
-    { label: 'ALOC', value: summary ? (summary.dailyAloc === null ? 'N / A' : summary.dailyAloc.toFixed(2)) : '—', context: 'Average call length' },
+    ['Running Balance', summary ? money(summary.runningBalance) : '—'],
+    ['Daily Minutes', summary ? fmt(summary.dailyMinutes) : '—'],
+    ['Daily Attempts', summary ? fmt(summary.dailyAttempts) : '—'],
+    ['Daily ASR', summary ? `${summary.dailyAsr.toFixed(2)}%` : '—'],
+    ['Daily ALOC', summary ? (summary.dailyAloc === null ? 'N/A' : summary.dailyAloc.toFixed(2)) : '—'],
   ];
 
   return (
     <Shell title="Dashboard">
       {error && <div className="alert alert-error">{error}</div>}
 
-      <section className="dashboard-intro">
-        <div>
-          <div className="dashboard-eyebrow">Today&apos;s network</div>
-          <h2>Performance at a glance</h2>
-          <p>Live traffic and account metrics for your carrier relationship.</p>
-        </div>
-        <div className={`dashboard-live ${error ? 'error' : ''}`}>
-          <span />{error ? 'Metrics unavailable' : summary ? 'Metrics available' : 'Loading metrics'}
-        </div>
-      </section>
-
-      <section className="kpi-strip" aria-label="Today's key metrics">
-        {metrics.map((metric) => (
-          <article className="kpi" key={metric.label}>
-            <div className="kpi-head"><div className="kpi-label">{metric.label}</div><span className="kpi-mark" /></div>
-            <div className="kpi-value">{metric.value}</div>
-            <div className="kpi-context">{metric.context}</div>
+      <section className="dashboard-kpis" aria-label="Daily account statistics">
+        {metrics.map(([label, value]) => (
+          <article className="dashboard-kpi" key={label}>
+            <span>{label}</span>
+            <strong>{value}</strong>
           </article>
         ))}
       </section>
 
-      <section className="panel chart-panel">
-        <div className="dashboard-chart-head">
-          <div>
-            <div className="dashboard-eyebrow">Traffic analytics</div>
-            <h2>Network overview</h2>
-          </div>
-          <div className="chart-controls">
-            <span className="interval-label">{visibleOverview?.granularityMinutes ?? 15} min intervals</span>
-            <select
-              className="inline-select"
-              value={periodHours}
-              aria-label="Period"
-              onChange={(event) => setPeriodHours(Number(event.target.value) as PeriodHours)}
-            >
-              <option value={24}>All day</option>
-              <option value={12}>Last 12 hours</option>
-              <option value={6}>Last 6 hours</option>
-              <option value={3}>Last 3 hours</option>
-              <option value={1}>Last hour</option>
-            </select>
-          </div>
+      <section className="panel peeredge-chart-panel">
+        <div className="peeredge-overview-head">
+          <h2>Overview</h2>
+          <select className="overview-period" value={periodHours} aria-label="Dashboard time range" onChange={(event) => setPeriodHours(Number(event.target.value) as PeriodHours)}>
+            <option value={2}>2 hours</option>
+            <option value={4}>4 hours</option>
+            <option value={6}>6 hours</option>
+            <option value={12}>12 hours</option>
+            <option value={24}>All day</option>
+          </select>
         </div>
-        <div className="tabs chart-tabs">
+        <div className="tabs peeredge-chart-tabs" role="tablist" aria-label="Dashboard graph">
           {TABS.map((item) => (
-            <button key={item.key} className={`tab ${item.key === tab.key ? 'tab-active' : ''}`} onClick={() => setTab(item)}>{item.key}</button>
+            <button key={item.label} role="tab" aria-selected={item.label === tab.label} className={`tab ${item.label === tab.label ? 'tab-active' : ''}`} onClick={() => setTab(item)}>{item.label}</button>
           ))}
         </div>
         {visibleOverview ? <OverviewChart data={visibleOverview} /> : <div className="chart-skeleton" />}

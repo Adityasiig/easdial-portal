@@ -12,15 +12,17 @@ export async function metricsRoutes(app: FastifyInstance, authService: AuthServi
   function scope(req: FastifyRequest): {
     relationshipId: string;
     direction: 'termination' | 'origination';
-    metric: 'minutes' | 'attempts';
+    metric: 'minutes' | 'attempts' | 'ports' | 'favorite_ports' | 'cps' | 'profit';
     role: 'customer' | 'vendor';
+    startTime?: string;
+    endTime?: string;
   } {
     const q = metricsQuerySchema.parse(req.query);
     const account = req.account!;
     const relationshipId =
       account.relationshipId ?? (account.role === 'admin' ? q.relationshipId : undefined);
     if (!relationshipId) throw BadRequest('No relationship is allocated to this account', 'no_relationship');
-    return { relationshipId, direction: q.direction, metric: q.metric, role: q.role };
+    return { relationshipId, direction: q.direction, metric: q.metric, role: q.role, startTime: q.startTime, endTime: q.endTime };
   }
 
   // What relationship the logged-in user is bound to (for the header/label).
@@ -42,8 +44,8 @@ export async function metricsRoutes(app: FastifyInstance, authService: AuthServi
 
   // Reportings → Relationship Performance
   app.get('/metrics/relationship-performance', async (req) => {
-    const { relationshipId, direction, role } = scope(req);
-    return getSwitchClient().getRelPerformance(relationshipId, direction, role);
+    const { relationshipId, direction, role, startTime, endTime } = scope(req);
+    return getSwitchClient().getRelPerformance(relationshipId, direction, role, startTime, endTime);
   });
 
   // Reportings → Numbering

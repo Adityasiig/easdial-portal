@@ -85,8 +85,10 @@ export class RelationshipRestClient implements SwitchDataClient {
     return { direction: query.direction, metric: query.metric ?? 'minutes', granularityMinutes: 15, series };
   }
 
-  async getRelPerformance(_relationshipId: string, direction: Direction, role: PartyRole): Promise<RelPerformanceRow[]> {
-    const { start, end } = this.todayBounds();
+  async getRelPerformance(_relationshipId: string, direction: Direction, role: PartyRole, startTime?: string, endTime?: string): Promise<RelPerformanceRow[]> {
+    const today = this.todayBounds();
+    const start = startTime ?? today.start;
+    const end = endTime ?? today.end;
     const params = new URLSearchParams({ relationship_type: role === 'customer' ? 'C' : 'V', traffic_direction: direction === 'termination' ? 'T' : 'O', start_datetime: start, end_datetime: end });
     const payload = await this.getJson<unknown>(`/relationship_performance/level1?${params}`);
     return responseRecords(payload).map((row) => ({
@@ -133,11 +135,17 @@ export class RelationshipRestClient implements SwitchDataClient {
     }
     if (query.ani) columns.push({ name: 'from_did', value: query.ani });
     if (query.dnis) columns.push({ name: 'to_did', value: query.dnis });
+    if (query.releaseCode) columns.push({ name: 'sip_code', value: query.releaseCode });
+    if (query.callId) columns.push({ name: 'callid', value: query.callId });
+    if (!query.includeBLeg) columns.push({ name: 'leg', value: 'A' });
 
     const payload = await this.postJson<unknown>('/cdr_diagnostics/search', {
       call_type: query.status === 'completed' ? 'C' : query.status === 'failed' ? 'F' : 'A',
       start_time: query.startTime,
       end_time: query.endTime,
+      duration_min: query.minDuration ?? null,
+      duration_max: query.maxDuration ?? null,
+      is_sanitize: false,
       location: query.location ?? 'dallas',
       columns,
     });

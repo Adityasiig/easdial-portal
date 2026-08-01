@@ -21,21 +21,33 @@ import type {
 import { logger } from '../../lib/logger.js';
 import { AppError } from '../../lib/errors.js';
 import { PeeredgeSession } from './PeeredgeSession.js';
+import { relationshipStartsWithBrandPrefix } from './relationshipFilter.js';
+
+type JsonRecord = Record<string, unknown>;
+
+const numberValue = (value: unknown): number => {
+  const parsed = Number(value ?? 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+const stringValue = (value: unknown): string => value == null ? '' : String(value);
+const records = (value: unknown): JsonRecord[] => Array.isArray(value)
+  ? value.filter((item): item is JsonRecord => !!item && typeof item === 'object')
+  : value && typeof value === 'object' && Array.isArray((value as JsonRecord).data)
+    ? ((value as JsonRecord).data as unknown[]).filter((item): item is JsonRecord => !!item && typeof item === 'object')
+    : [];
 
 /**
  * Reads the DialPhone switch via ONE admin service login (api-<slug>/api/v2).
  *
- * CONFIRMED (from captured admin traffic):
+ * Verified against the live DialPhone switch admin API:
  *   - POST /api/v2/login → bearer token (via PeeredgeSession)
  *   - GET  /api/v2/carriers → full carrier list (used to list ED- relationships)
- *   - GET  /api/v2/dashboard/statistics|graphs → switch-WIDE aggregates
- *
- * PENDING (needs one confirm with live admin creds): the per-relationship-by-ID
- * metrics endpoints. Until confirmed, the per-relationship readers return empty
- * shapes in rest mode. The relationship LIST is already live.
+ *   - relationship performance, scoped trunk groups, CDR search, rates, invoices,
+ *     payments and dashboard graphs are always filtered to the allocated carrier.
  */
 export class AdminRestClient implements SwitchDataClient {
   private readonly base: string;
+  private carriers: JsonRecord[] | null = null;
 
   constructor(
     baseUrl: string,
@@ -54,94 +66,316 @@ export class AdminRestClient implements SwitchDataClient {
   }
 
   async listRelationships(): Promise<RelationshipRef[]> {
-    const carriers = await this.getJson<Array<{ id: number; carrier_name?: string }>>('/carriers');
-    const re = new RegExp(`^\\s*${this.brandPrefix}\\s*-`, 'i');
+    const carriers = await this.getCarriers();
     return carriers
-      .filter((c) => re.test(c.carrier_name ?? ''))
-      .map((c) => ({ id: String(c.id), name: (c.carrier_name ?? '').trim() }))
+      .filter((carrier) => relationshipStartsWithBrandPrefix(stringValue(carrier.carrier_name), this.brandPrefix))
+      .map((carrier) => ({ id: stringValue(carrier.id), name: stringValue(carrier.carrier_name).trim() }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 
   async getSummary(relationshipId: string): Promise<DashboardSummary> {
-    // TODO(confirm-with-creds): per-relationship statistics endpoint.
-    this.pending('summary', relationshipId);
+    const carrier = await this.getCarrier(relationshipId);
+    const performance = await this.getPerformanceRows(relationshipId, 'termination', 'customer', 2);
+    const row = performance.find((item) => this.rowCarrierId(item) === relationshipId) ?? {};
     return {
       date: new Date().toISOString().slice(0, 10),
-      runningBalance: 0,
-      dailyMinutes: 0,
-      dailyAttempts: 0,
-      dailyAsr: 0,
-      dailyAloc: null,
+      runningBalance: numberValue(carrier.present_balance ?? carrier.balance),
+      dailyMinutes: numberValue(row.minutes),
+      dailyAttempts: numberValue(row.attempts),
+      dailyAsr: numberValue(row.asr),
+      dailyAloc: row.aloc == null && row.raw_aloc == null ? null : numberValue(row.aloc ?? row.raw_aloc),
     };
   }
 
   async getOverview(relationshipId: string, query: MetricsQuery): Promise<OverviewSeries> {
-    this.pending('overview', relationshipId);
+    const direction = query.direction;
+    const groups = await this.getScopedTrunkGroups(relationshipId, direction);
+    const payloads = await Promise.all(groups.map(async (group) => {
+      const params = new URLSearchParams({
+        traffic_type: query.metric ?? 'minutes',
+        traffic_direction: direction === 'termination' ? 'T' : 'O',
+        trunk_group_type: direction === 'termination' ? 'Termination' : 'Origination',
+        relationship_type: 'Customer',
+        trunk_group_id: group.id,
+        duration: 'Today',
+      });
+      return await this.getJson<JsonRecord>(`/dashboard/graphs?${params}`);
+    }));
+
+    const seriesKeys: Array<{ key: string; label: string; offsetDays: number }> = [
+      { key: 'today', label: 'Today', offsetDays: 0 },
+      { key: 'yesterday', label: 'Yesterday', offsetDays: 1 },
+      { key: 'lastWeek', label: 'Last week', offsetDays: 7 },
+    ];
+    const series = seriesKeys.map(({ key, label, offsetDays }) => {
+      const sums = new Map<string, number>();
+      for (const payload of payloads) {
+        for (const point of records(payload[key])) {
+          const rawTime = stringValue(point.time);
+          if (!rawTime) continue;
+          const comparable = this.toIso(rawTime, offsetDays);
+          sums.set(comparable, (sums.get(comparable) ?? 0) + numberValue(point.value));
+        }
+      }
+      return { label, points: [...sums].sort(([a], [b]) => a.localeCompare(b)).map(([ts, value]) => ({ ts, value })) };
+    });
     return {
-      direction: query.direction,
+      direction,
       metric: query.metric ?? 'minutes',
       granularityMinutes: 15,
-      series: [],
+      series,
     };
   }
 
   async getRelPerformance(
     relationshipId: string,
-    _direction: Direction,
-    _role: PartyRole,
+    direction: Direction,
+    role: PartyRole,
+    startTime?: string,
+    endTime?: string,
   ): Promise<RelPerformanceRow[]> {
-    // TODO(confirm-with-creds): GET /relationship_performance/... filtered to this relationship.
-    this.pending('relationship-performance', relationshipId);
-    return [];
+    const rows = await this.getPerformanceRows(relationshipId, direction, role, 3, startTime, endTime);
+    return rows.map((row) => ({
+      name: stringValue(row.trunk_group_name ?? row.carrier_name ?? row.name),
+      attempts: numberValue(row.attempts),
+      completions: numberValue(row.completions),
+      minutes: numberValue(row.minutes),
+      asr: numberValue(row.asr),
+      aloc: numberValue(row.aloc ?? row.raw_aloc),
+      sdr: numberValue(row.sdr),
+      mos: numberValue(row.mos),
+    }));
   }
 
   async getNumbering(relationshipId: string): Promise<NumberingRow[]> {
-    this.pending('numbering', relationshipId);
-    return [];
+    const payload = await this.getJson<unknown>(`/routeplan_numberings?page=1&per_page=1000&carrier_id=${encodeURIComponent(relationshipId)}`);
+    return records(payload).map((row) => ({
+      number: stringValue(row.number ?? row.did ?? row.prefix),
+      type: stringValue(row.type ?? row.numbering_type),
+      lastModified: stringValue(row.updated_at ?? row.modified_at),
+      modifiedBy: stringValue(row.modified_by ?? row.modifier),
+    }));
   }
 
-  async getCdrFilters(relationshipId: string, _direction: Direction): Promise<CdrFilterOptions> {
-    this.pending('cdr-filters', relationshipId);
-    return { locations: [], trunkGroups: [] };
+  async getCdrFilters(relationshipId: string, direction: Direction): Promise<CdrFilterOptions> {
+    const [locations, trunkGroups] = await Promise.all([
+      this.getLocations(),
+      this.getScopedTrunkGroups(relationshipId, direction),
+    ]);
+    return { locations, trunkGroups };
   }
 
-  async getCdrs(relationshipId: string, _query: CdrQuery): Promise<CdrRow[]> {
-    this.pending('cdrs', relationshipId);
-    return [];
+  async getCdrs(relationshipId: string, query: CdrQuery): Promise<CdrRow[]> {
+    const scopedGroups = await this.getScopedTrunkGroups(relationshipId, query.direction);
+    const selectedGroups = query.trunkGroupId
+      ? scopedGroups.filter((group) => group.id === query.trunkGroupId)
+      : scopedGroups;
+    if (selectedGroups.length === 0) return [];
+
+    const typeColumns = query.direction === 'termination'
+      ? [{ name: 'orig_trunk_group_type', value: '1' }, { name: 'term_trunk_group_type', value: '2' }]
+      : [{ name: 'orig_trunk_group_type', value: '2' }, { name: 'term_trunk_group_type', value: '1' }];
+    const selectedColumn = query.direction === 'termination' ? 'orig_trunk_group_id' : 'term_trunk_group_id';
+    const payloads = await Promise.all(selectedGroups.map((group) => {
+      const columns = [{ name: selectedColumn, value: group.id }, ...typeColumns];
+      if (!query.includeBLeg) columns.push({ name: 'leg', value: 'A' });
+      if (query.ani) columns.push({ name: 'from_did', value: query.ani });
+      if (query.dnis) columns.push({ name: 'to_did', value: query.dnis });
+      if (query.releaseCode) columns.push({ name: 'sip_code', value: query.releaseCode });
+      if (query.callId) columns.push({ name: 'callid', value: query.callId });
+      return this.postJson<unknown>('/cdr_diagnostics/search', {
+        call_type: query.status === 'completed' ? 'C' : query.status === 'failed' ? 'F' : 'A',
+        start_time: query.startTime,
+        end_time: query.endTime,
+        duration_min: query.minDuration ?? null,
+        duration_max: query.maxDuration ?? null,
+        is_sanitize: false,
+        location: query.location ?? 'dallas',
+        columns,
+      });
+    }));
+
+    const relationshipOnOriginationSide = query.direction === 'termination';
+    const unique = new Map<string, CdrRow>();
+    for (const payload of payloads) {
+      for (const row of records(payload)) {
+        const mapped: CdrRow = {
+          dateTime: this.toIso(row.call_transaction_time),
+          ani: stringValue(row.from_did),
+          dnis: stringValue(row.to_did),
+          lrn: stringValue(row.lrn_did),
+          releaseCode: stringValue(row.sip_code),
+          releaseCause: stringValue(row.reason ?? row.sip_reason),
+          duration: numberValue(row.duration_real),
+          relationshipTrunk: `${stringValue(relationshipOnOriginationSide ? row.orig_carrier_name : row.term_carrier_name)} / ${stringValue(relationshipOnOriginationSide ? row.orig_trunk_group_name : row.term_trunk_group_name)}`,
+          origJuris: stringValue(row.orig_juris),
+          rate: numberValue(relationshipOnOriginationSide ? row.orig_rate : row.term_rate),
+        };
+        const key = stringValue(row.cdr_uuid ?? row.callid) || `${mapped.dateTime}-${mapped.ani}-${mapped.dnis}`;
+        unique.set(key, mapped);
+      }
+    }
+    return [...unique.values()].sort((a, b) => b.dateTime.localeCompare(a.dateTime));
   }
 
   async getLiveCalls(relationshipId: string): Promise<LiveCallRow[]> {
-    this.pending('live-calls', relationshipId);
-    return [];
+    // The admin endpoint is switch-wide and requires a location. Filter both
+    // legs by the allocated relationship before anything leaves the backend.
+    const carrier = await this.getCarrier(relationshipId);
+    const carrierName = stringValue(carrier.carrier_name).trim().toLowerCase();
+    const locations = await this.getLocations();
+    const payloads = await Promise.all(locations.map(async (location) => {
+      try { return await this.getJson<unknown>(`/live_calls?location=${encodeURIComponent(location)}`); }
+      catch { return []; }
+    }));
+    return payloads.flatMap(records).filter((row) => {
+      const names = [row.orig_carrier_name, row.term_carrier_name, row.originating_carrier_name, row.terminating_carrier_name]
+        .map((value) => stringValue(value).trim().toLowerCase());
+      return names.includes(carrierName);
+    }).map((row) => ({
+      relationship: stringValue(row.orig_carrier_name ?? row.originating_carrier_name ?? row.relationship_name),
+      trunkGroup: stringValue(row.orig_trunk_group_name ?? row.originating_trunk_group_name ?? row.trunk_group_name),
+      start: this.toIso(row.start_time ?? row.call_start_time ?? row.started_at),
+      ani: stringValue(row.ani ?? row.from_did),
+      dnis: stringValue(row.dnis ?? row.to_did),
+      duration: numberValue(row.duration ?? row.duration_real),
+    }));
   }
 
-  async getCdrExports(relationshipId: string): Promise<CdrExportRow[]> {
-    this.pending('cdr-exports', relationshipId);
+  async getCdrExports(_relationshipId: string): Promise<CdrExportRow[]> {
+    // Admin exports are generated asynchronously and the list route is not
+    // carrier-scoped. Do not expose switch-wide export history to customers.
     return [];
   }
 
   async getRates(relationshipId: string): Promise<RateRow[]> {
-    this.pending('rates', relationshipId);
-    return [];
+    const payload = await this.getJson<unknown>(`/rate_sheets?carrier_id=${encodeURIComponent(relationshipId)}`);
+    return records(payload).map((row) => ({
+      name: stringValue(row.name),
+      trunkGroups: Array.isArray(row.trunk_groups) ? row.trunk_groups.length : numberValue(row.trunk_groups),
+      direction: stringValue(row.direction),
+      relationship: stringValue(row.relationship_type),
+      location: stringValue(row.location),
+      type: stringValue(row.deck_type ?? row.rate_by),
+      totalRates: numberValue(row.total_count),
+      expirationDate: row.expiration_date ? stringValue(row.expiration_date) : null,
+      modified: stringValue(row.updated_at ?? row.created_at),
+    }));
   }
 
   async getInvoices(relationshipId: string): Promise<InvoiceRow[]> {
-    this.pending('invoices', relationshipId);
-    return [];
+    const payload = await this.getJson<unknown>(`/invoices?carrier_id=${encodeURIComponent(relationshipId)}`);
+    return records(payload).map((row) => ({
+      invoiceNumber: stringValue(row.invoice_number ?? row.number ?? row.id),
+      validity: row.is_incorrect ? 'Incorrect' : 'Valid',
+      createdAt: stringValue(row.created_at),
+      startEndDate: `${stringValue(row.start_date)} — ${stringValue(row.end_date)}`,
+      invoiceCycle: stringValue(row.invoice_cycle),
+      invoiceAmount: numberValue(row.total_amount ?? row.invoice_amount ?? row.amount),
+      tag: stringValue(row.tag ?? row.status),
+    }));
   }
 
   async getTransactions(relationshipId: string): Promise<TransactionRow[]> {
-    this.pending('transactions', relationshipId);
+    const payload = await this.getJson<unknown>(`/carrier_payments?carrier_id=${encodeURIComponent(relationshipId)}`);
+    return records(payload).map((row) => ({
+      date: stringValue(row.created_at ?? row.date),
+      transaction: stringValue(row.transaction ?? row.traffic_type),
+      type: stringValue(row.transaction_type ?? row.type),
+      transactionDate: stringValue(row.transaction_date),
+      amount: numberValue(row.amount),
+      runningBalance: numberValue(row.running_balance),
+      paymentMemo: stringValue(row.payment_memo ?? row.memo),
+      addedFrom: stringValue(row.added_from),
+    }));
+  }
+
+  async getPayments(_relationshipId: string): Promise<PaymentRow[]> {
+    // The switch-admin payment-registration route is not carrier scoped. Keep
+    // it closed instead of risking cross-customer financial data disclosure.
     return [];
   }
 
-  async getPayments(relationshipId: string): Promise<PaymentRow[]> {
-    this.pending('payments', relationshipId);
-    return [];
+  private async getCarriers(): Promise<JsonRecord[]> {
+    if (!this.carriers) this.carriers = records(await this.getJson<unknown>('/carriers'));
+    return this.carriers;
   }
 
-  private pending(what: string, relationshipId: string): void {
-    logger.warn({ what, relationshipId }, 'per-relationship endpoint pending confirmation with live admin creds');
+  private async getCarrier(relationshipId: string): Promise<JsonRecord> {
+    const carrier = (await this.getCarriers()).find((row) => stringValue(row.id) === relationshipId);
+    if (!carrier) throw new AppError(404, 'relationship_not_found', 'Relationship not found in Peeredge');
+    return carrier;
+  }
+
+  private rowCarrierId(row: JsonRecord): string {
+    return stringValue(row.carrier_id_customer ?? row.carrier_id ?? row.id);
+  }
+
+  private todayBounds(): { start: string; end: string } {
+    const date = new Date().toISOString().slice(0, 10);
+    return { start: `${date}T00:00:00Z`, end: `${date}T23:59:59Z` };
+  }
+
+  private async getPerformanceRows(
+    relationshipId: string,
+    direction: Direction,
+    role: PartyRole,
+    level: 2 | 3,
+    startTime?: string,
+    endTime?: string,
+  ): Promise<JsonRecord[]> {
+    const today = this.todayBounds();
+    const start = startTime ?? today.start;
+    const end = endTime ?? today.end;
+    const params = new URLSearchParams({
+      relationship_type: role === 'customer' ? 'C' : 'V',
+      traffic_direction: direction === 'termination' ? 'T' : 'O',
+      start_datetime: start,
+      end_datetime: end,
+    });
+    if (level === 3) params.set('carrier_id', relationshipId);
+    const rows = records(await this.getJson<unknown>(`/relationship_performance/level${level}?${params}`));
+    return level === 2 ? rows.filter((row) => this.rowCarrierId(row) === relationshipId) : rows;
+  }
+
+  private async getLocations(): Promise<string[]> {
+    const rows = records(await this.getJson<unknown>('/locations/server_locations'));
+    return [...new Set(rows.map((row) => stringValue(row.location ?? row.name)).filter(Boolean))].sort();
+  }
+
+  private async getScopedTrunkGroups(
+    relationshipId: string,
+    direction: Direction,
+  ): Promise<Array<{ id: string; label: string }>> {
+    const carrier = await this.getCarrier(relationshipId);
+    const carrierName = stringValue(carrier.carrier_name).trim();
+    const prefix = `${carrierName} -`;
+    const trunkGroupType = direction === 'termination' ? '0' : '1';
+    const locations = await this.getLocations();
+    const payloads = await Promise.all((locations.length ? locations : ['']).map((location) => {
+      const params = new URLSearchParams({ trunk_group_type: trunkGroupType, relationship_type: '1' });
+      if (location) params.set('location', location);
+      return this.getJson<unknown>(`/trunk_groups/by_type_and_location?${params}`);
+    }));
+    const groups = payloads.flatMap(records).map((row) => ({
+      id: stringValue(row.id ?? row.trunk_group_id),
+      composite: stringValue(row.carrier_name ?? row.complete_name ?? row.trunk_group_name),
+    })).filter((group) => group.id && group.composite.toLowerCase().startsWith(prefix.toLowerCase()));
+    return [...new Map(groups.map((group) => [group.id, {
+      id: group.id,
+      label: group.composite.slice(prefix.length).trim() || group.composite,
+    }])).values()].sort((a, b) => a.label.localeCompare(b.label));
+  }
+
+  private toIso(value: unknown, shiftDays = 0): string {
+    const raw = stringValue(value);
+    if (!raw) return '';
+    const normalized = raw.includes('T') ? raw : raw.replace(' ', 'T');
+    const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(normalized);
+    const parsed = new Date(hasTimezone ? normalized : `${normalized}Z`);
+    if (Number.isNaN(parsed.getTime())) return raw;
+    if (shiftDays) parsed.setUTCDate(parsed.getUTCDate() + shiftDays);
+    return parsed.toISOString();
   }
 
   // --- HTTP with re-auth on 401 -----------------------------------------
@@ -161,5 +395,23 @@ export class AdminRestClient implements SwitchDataClient {
     const res = await this.get(path);
     if (!res.ok) throw new AppError(502, 'peeredge_upstream', `${path} returned ${res.status}`);
     return (await res.json()) as T;
+  }
+
+  private async postJson<T>(path: string, body: unknown): Promise<T> {
+    const send = async () => fetch(`${this.base}${path}`, {
+      method: 'POST',
+      headers: await this.session.requestHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(body),
+    });
+    let res = await send();
+    if (res.status === 401 || res.status === 403) {
+      await this.session.refresh();
+      res = await send();
+    }
+    if (!res.ok) {
+      logger.warn({ path, status: res.status }, 'Peeredge admin request failed');
+      throw new AppError(502, 'peeredge_upstream', `${path} returned ${res.status}`);
+    }
+    return await res.json() as T;
   }
 }

@@ -5,6 +5,7 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:4000';
 export type Role = 'admin' | 'user';
 export type Direction = 'termination' | 'origination';
 export type PartyRole = 'customer' | 'vendor';
+export type DashboardMetric = 'minutes' | 'attempts' | 'ports' | 'favorite_ports' | 'cps' | 'profit';
 
 export interface SessionUser {
   id: string;
@@ -38,7 +39,7 @@ export interface NamedSeries {
 }
 export interface OverviewSeries {
   direction: Direction;
-  metric: 'minutes' | 'attempts';
+  metric: DashboardMetric;
   granularityMinutes: number;
   series: NamedSeries[];
 }
@@ -85,6 +86,11 @@ export interface CdrQuery {
   trunkGroupLabel?: string;
   ani?: string;
   dnis?: string;
+  releaseCode?: string;
+  callId?: string;
+  minDuration?: number;
+  maxDuration?: number;
+  includeBLeg?: boolean;
   status: CdrStatus;
 }
 
@@ -213,10 +219,14 @@ export const api = {
 
   // metrics (scoped to the caller's allocated relationship)
   summary: () => request<DashboardSummary>('/metrics/summary'),
-  overview: (direction: Direction, metric: 'minutes' | 'attempts') =>
+  overview: (direction: Direction, metric: DashboardMetric) =>
     request<OverviewSeries>(`/metrics/overview?direction=${direction}&metric=${metric}`),
-  relPerformance: (direction: Direction, role: PartyRole) =>
-    request<RelPerformanceRow[]>(`/metrics/relationship-performance?direction=${direction}&role=${role}`),
+  relPerformance: (direction: Direction, role: PartyRole, startTime?: string, endTime?: string) => {
+    const params = new URLSearchParams({ direction, role });
+    if (startTime) params.set('startTime', startTime);
+    if (endTime) params.set('endTime', endTime);
+    return request<RelPerformanceRow[]>(`/metrics/relationship-performance?${params}`);
+  },
   numbering: () => request<NumberingRow[]>('/metrics/numbering'),
   cdrFilters: (direction: Direction) => request<CdrFilterOptions>(`/metrics/cdr-filters?direction=${direction}`),
   cdrs: (query: CdrQuery) => {

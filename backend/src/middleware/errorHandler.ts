@@ -10,8 +10,13 @@ export function errorHandler(
   reply: FastifyReply,
 ): void {
   if (err instanceof ZodError) {
+    const firstIssue = err.issues[0];
     reply.status(400).send({
-      error: { code: 'validation_error', message: 'Invalid request', details: err.flatten() },
+      error: {
+        code: 'validation_error',
+        message: firstIssue?.message ?? 'Invalid request',
+        details: err.flatten(),
+      },
     });
     return;
   }

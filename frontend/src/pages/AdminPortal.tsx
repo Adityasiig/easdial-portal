@@ -22,6 +22,8 @@ export function AdminPortal() {
   const [busy, setBusy] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<SessionUser | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const passwordValid = password.length >= 8;
 
   async function loadUsers() {
     setLoadingUsers(true);
@@ -60,6 +62,14 @@ export function AdminPortal() {
     event.preventDefault();
     setError(null);
     setNotice(null);
+    if (!emailValid) {
+      setError('Enter a valid email address.');
+      return;
+    }
+    if (!passwordValid) {
+      setError('Temporary password must be at least 8 characters.');
+      return;
+    }
     const relationship = relationships.find((item) => item.id === relationshipId);
     if (!relationship) {
       setError('Pick a relationship to allocate.');
@@ -156,8 +166,15 @@ export function AdminPortal() {
               onChange={(event) => setPassword(event.target.value)}
               minLength={8}
               placeholder="Minimum 8 characters"
+              aria-invalid={password.length > 0 && !passwordValid}
+              aria-describedby="temporary-password-help"
               required
             />
+            <span id="temporary-password-help" className={`field-help ${password.length > 0 && !passwordValid ? 'invalid' : ''}`}>
+              {password.length > 0 && !passwordValid
+                ? `${password.length} of 8 required characters`
+                : 'Use at least 8 characters.'}
+            </span>
           </label>
           <label>
             Dedicated relationship
@@ -175,7 +192,10 @@ export function AdminPortal() {
               ))}
             </select>
           </label>
-          <button className="btn btn-primary" disabled={busy || loadingRelationships || !relationshipId}>
+          <button
+            className="btn btn-primary"
+            disabled={busy || loadingRelationships || !relationshipId || !emailValid || !passwordValid}
+          >
             {busy ? 'Creating…' : 'Create user'}
           </button>
         </form>

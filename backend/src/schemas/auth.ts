@@ -20,9 +20,11 @@ export const updateUserSchema = z.object({
 
 export const metricsQuerySchema = z.object({
   direction: z.enum(['termination', 'origination']).default('termination'),
-  metric: z.enum(['minutes', 'attempts']).default('minutes'),
+  metric: z.enum(['minutes', 'attempts', 'ports', 'favorite_ports', 'cps', 'profit']).default('minutes'),
   role: z.enum(['customer', 'vendor']).default('customer'),
   relationshipId: z.string().optional(), // admins may preview a specific relationship
+  startTime: z.string().datetime().optional(),
+  endTime: z.string().datetime().optional(),
 });
 
 export const cdrQuerySchema = z.object({
@@ -34,10 +36,18 @@ export const cdrQuerySchema = z.object({
   trunkGroupLabel: z.string().trim().max(240).optional(),
   ani: z.string().trim().max(64).optional(),
   dnis: z.string().trim().max(64).optional(),
+  releaseCode: z.string().trim().max(32).optional(),
+  callId: z.string().trim().max(160).optional(),
+  minDuration: z.coerce.number().int().min(0).max(86400).optional(),
+  maxDuration: z.coerce.number().int().min(0).max(86400).optional(),
+  includeBLeg: z.enum(['true', 'false']).transform((value) => value === 'true').optional(),
   status: z.enum(['all', 'completed', 'failed']).default('all'),
 }).superRefine((value, ctx) => {
   const start = new Date(value.startTime).getTime();
   const end = new Date(value.endTime).getTime();
   if (end <= start) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['endTime'], message: 'End time must be after start time' });
   if (end - start > 31 * 24 * 60 * 60 * 1000) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['endTime'], message: 'CDR range cannot exceed 31 days' });
+  if (value.minDuration !== undefined && value.maxDuration !== undefined && value.maxDuration < value.minDuration) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['maxDuration'], message: 'Maximum duration must be greater than or equal to minimum duration' });
+  }
 });

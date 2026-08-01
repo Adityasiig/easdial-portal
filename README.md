@@ -5,9 +5,9 @@ An independent, EasDial-branded carrier reporting portal with a clean white-and-
 ## Current capabilities
 
 - Secure EasDial login and tenant-scoped access tokens.
-- Dashboard KPIs and origination/termination overview charts.
+- Peeredge-style dashboard KPIs and functional minutes, attempts, ports, CPS, and profit graph tabs.
 - Relationship performance and numbering reports.
-- Termination/origination CDR diagnostics, live calls, and export history.
+- Termination/origination CDR diagnostics with a dual-month GMT calendar, full live filters, live calls, and scoped export history.
 - Rates, invoices, carrier transactions, and PayPal history.
 - Responsive white interface using the bundled Inter variable font.
 - Three data-source modes: `mock`, switch-admin `rest`, and verified single-carrier `relationship`.
@@ -45,6 +45,17 @@ PEEREDGE_RELATIONSHIP_LOGIN_PATH=/login
 ```
 
 The backend logs in server-side, keeps the upstream token in memory, refreshes it after expiry or authorization failure, and returns only normalized portal data to the browser. See [PEEREDGE_API.md](PEEREDGE_API.md) for the audited endpoint mapping.
+
+For multiple ED customer relationships, use the verified switch-admin mode:
+
+```dotenv
+PEEREDGE_SOURCE=rest
+PEEREDGE_BASE_URL=https://api-dialphone.peeredge.com
+PEEREDGE_ADMIN_EMAIL=your_service_account_email
+PEEREDGE_ADMIN_PASSWORD=your_service_account_password
+PEEREDGE_ADMIN_LOGIN_PATH=/api/v2/login
+PEEREDGE_BRAND_PREFIX=ED
+```
 
 ## Production checks
 
