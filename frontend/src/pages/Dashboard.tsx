@@ -29,29 +29,46 @@ export function Dashboard() {
   }, [tab]);
 
   const metrics = [
-    { label: 'Running Balance', value: summary ? money(summary.runningBalance) : '—' },
-    { label: 'Daily Minutes', value: summary ? fmt(summary.dailyMinutes) : '—' },
-    { label: 'Daily Attempts', value: summary ? fmt(summary.dailyAttempts) : '—' },
-    { label: 'Daily ASR', value: summary ? `${summary.dailyAsr.toFixed(2)}%` : '—' },
-    { label: 'Daily ALOC', value: summary ? (summary.dailyAloc === null ? 'N / A' : summary.dailyAloc.toFixed(2)) : '—' },
+    { label: 'Running balance', value: summary ? money(summary.runningBalance) : '—', context: 'Current account balance' },
+    { label: 'Minutes', value: summary ? fmt(summary.dailyMinutes) : '—', context: 'Processed today' },
+    { label: 'Attempts', value: summary ? fmt(summary.dailyAttempts) : '—', context: 'Call attempts today' },
+    { label: 'ASR', value: summary ? `${summary.dailyAsr.toFixed(2)}%` : '—', context: 'Answer-seizure ratio' },
+    { label: 'ALOC', value: summary ? (summary.dailyAloc === null ? 'N / A' : summary.dailyAloc.toFixed(2)) : '—', context: 'Average call length' },
   ];
 
   return (
     <Shell title="Dashboard">
       {error && <div className="alert alert-error">{error}</div>}
-      <section className="kpi-strip">
+
+      <section className="dashboard-intro">
+        <div>
+          <div className="dashboard-eyebrow">Today&apos;s network</div>
+          <h2>Performance at a glance</h2>
+          <p>Live traffic and account metrics for your carrier relationship.</p>
+        </div>
+        <div className="dashboard-live"><span />Systems operational</div>
+      </section>
+
+      <section className="kpi-strip" aria-label="Today's key metrics">
         {metrics.map((metric) => (
-          <div className="kpi" key={metric.label}>
-            <div className="kpi-label">{metric.label}</div>
+          <article className="kpi" key={metric.label}>
+            <div className="kpi-head"><div className="kpi-label">{metric.label}</div><span className="kpi-mark" /></div>
             <div className="kpi-value">{metric.value}</div>
-          </div>
+            <div className="kpi-context">{metric.context}</div>
+          </article>
         ))}
       </section>
 
       <section className="panel chart-panel">
-        <div className="panel-head panel-head-left">
-          <h2>Overview</h2>
-          <select className="inline-select" defaultValue="all-day" aria-label="Period"><option value="all-day">All day</option></select>
+        <div className="dashboard-chart-head">
+          <div>
+            <div className="dashboard-eyebrow">Traffic analytics</div>
+            <h2>Network overview</h2>
+          </div>
+          <div className="chart-controls">
+            <span className="interval-label">15 min intervals</span>
+            <select className="inline-select" defaultValue="all-day" aria-label="Period"><option value="all-day">All day</option></select>
+          </div>
         </div>
         <div className="tabs chart-tabs">
           {TABS.map((item) => (
