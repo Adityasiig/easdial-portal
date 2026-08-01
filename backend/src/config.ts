@@ -14,6 +14,10 @@ const schema = z.object({
   EASDIAL_ADMIN_EMAIL: z.string().email().default('admin@easdial.com'),
   EASDIAL_ADMIN_PASSWORD: z.string().min(8).default('changeme_admin_password'),
 
+  // Optional outside Docker/tests. Production compose supplies this so portal
+  // accounts survive backend restarts and deployments.
+  DATABASE_URL: z.string().url().optional().or(z.literal('')),
+
   // ---- Data source ----
   // "mock" (synthetic, no creds) or "rest" (live DialPhone admin API).
   PEEREDGE_SOURCE: z.enum(['mock', 'rest', 'relationship']).default('mock'),

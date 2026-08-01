@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { Sidebar } from './Sidebar';
 import { useAuth } from '../auth/AuthContext';
 import { brand } from '../theme/brand';
+import { api, type UpstreamHealth } from '../api/client';
 
 function useGmtClock(): string {
   const [now, setNow] = useState(() => new Date());
@@ -20,7 +21,23 @@ export function Shell({ title, children }: { title: string; children: ReactNode 
   const clock = useGmtClock();
   const [menuOpen, setMenuOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
+  const [activeCalls, setActiveCalls] = useState<number | null>(null);
+  const [upstream, setUpstream] = useState<UpstreamHealth | null>(null);
   const initial = (user?.email?.[0] ?? 'E').toUpperCase();
+
+  useEffect(() => {
+    let active = true;
+    const loadCalls = () => api.liveCalls()
+      .then((rows) => active && setActiveCalls(rows.length))
+      .catch(() => active && setActiveCalls(null));
+    void loadCalls();
+    void api.upstreamHealth().then((health) => active && setUpstream(health)).catch(() => undefined);
+    const timer = window.setInterval(loadCalls, 15_000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, []);
 
   return (
     <div className="app-shell">
@@ -38,8 +55,8 @@ export function Shell({ title, children }: { title: string; children: ReactNode 
           </div>
           <div className="topbar-right">
             <div className="network-summary">
-              <span className="topstat"><span className="meter-ring" /><b>0</b> Calls</span>
-              <span className="topstat"><span className="meter-ring" /><b>0</b> CPS</span>
+              <span className="topstat"><span className="meter-ring" /><b>{activeCalls ?? '—'}</b> Calls</span>
+              <span className="topstat" title="CPS is not supplied by the configured upstream"><span className="meter-ring muted" /><b>—</b> CPS</span>
             </div>
             <span className="clock">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -68,6 +85,11 @@ export function Shell({ title, children }: { title: string; children: ReactNode 
             </div>
           </div>
         </header>
+        {upstream?.source === 'mock' && (
+          <div className="data-source-banner" role="status">
+            Demo data is active. Connect the live Peeredge relationship source before using these figures operationally.
+          </div>
+        )}
         <div className="content">{children}</div>
         <footer className="page-footer">
           <span>{brand.company}</span>

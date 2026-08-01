@@ -30,6 +30,7 @@ export async function buildServer(): Promise<BuiltServer> {
   await app.register(async (a) => authRoutes(a, authService));
   await app.register(async (a) => adminRoutes(a, authService, accounts));
   await app.register(async (a) => metricsRoutes(a, authService));
+  app.addHook('onClose', async () => accounts.close());
 
   return { app, accounts, authService };
 }

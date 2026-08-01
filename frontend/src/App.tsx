@@ -13,12 +13,14 @@ import { AdminPortal } from './pages/AdminPortal';
 import type { JSX, ReactNode } from 'react';
 
 function RequireAuth({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, ready } = useAuth();
+  if (!ready) return <SessionLoading />;
   return user ? <>{children}</> : <Navigate to="/login" replace />;
 }
 
 function RequireAdmin({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, ready } = useAuth();
+  if (!ready) return <SessionLoading />;
   if (!user) return <Navigate to="/login" replace />;
   if (user.role !== 'admin') return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
@@ -26,9 +28,19 @@ function RequireAdmin({ children }: { children: ReactNode }) {
 
 /** Send each role to its home. */
 function Home() {
-  const { user } = useAuth();
+  const { user, ready } = useAuth();
+  if (!ready) return <SessionLoading />;
   if (!user) return <Navigate to="/login" replace />;
   return <Navigate to={user.role === 'admin' ? '/admin' : '/dashboard'} replace />;
+}
+
+function SessionLoading() {
+  return (
+    <main className="session-loading" aria-live="polite">
+      <span className="loading-spinner" aria-hidden />
+      <span>Restoring your session…</span>
+    </main>
+  );
 }
 
 const PAGES: Array<[string, () => JSX.Element]> = [

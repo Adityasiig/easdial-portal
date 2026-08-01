@@ -1,16 +1,20 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { ApiError } from '../api/client';
 import { brand } from '../theme/brand';
 
 export function Login() {
-  const { login } = useAuth();
+  const { login, user, ready } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (ready && user) navigate(user.role === 'admin' ? '/admin' : '/dashboard', { replace: true });
+  }, [navigate, ready, user]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();

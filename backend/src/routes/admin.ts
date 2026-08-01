@@ -51,7 +51,15 @@ export async function adminRoutes(
 
   app.delete('/admin/users/:id', async (req, reply) => {
     const { id } = req.params as { id: string };
-    accounts.delete(id);
+    try {
+      const deleted = await accounts.delete(id);
+      if (!deleted) throw BadRequest('User not found', 'not_found');
+    } catch (err) {
+      if (err instanceof Error && err.message === 'admin_delete_forbidden') {
+        throw BadRequest('The administrator account cannot be deleted', 'admin_delete_forbidden');
+      }
+      throw err;
+    }
     reply.send({ ok: true });
   });
 }

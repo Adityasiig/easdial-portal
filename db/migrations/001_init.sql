@@ -2,11 +2,12 @@
 -- Safe to run repeatedly (IF NOT EXISTS).
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE EXTENSION IF NOT EXISTS citext;
 
 CREATE TABLE IF NOT EXISTS users (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email           CITEXT UNIQUE,                 -- falls back to TEXT if citext missing (see note)
-    relationship_id TEXT        NOT NULL,          -- Peeredge relationship this carrier maps to
+    relationship_id TEXT,                          -- null for admin; Peeredge relationship for carrier
     brand           TEXT        NOT NULL DEFAULT 'easdial',
     role            TEXT        NOT NULL DEFAULT 'carrier',   -- carrier | admin
     password_hash   TEXT,                          -- null until password set

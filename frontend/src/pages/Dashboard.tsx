@@ -60,7 +60,9 @@ export function Dashboard() {
           <h2>Performance at a glance</h2>
           <p>Live traffic and account metrics for your carrier relationship.</p>
         </div>
-        <div className="dashboard-live"><span />Systems operational</div>
+        <div className={`dashboard-live ${error ? 'error' : ''}`}>
+          <span />{error ? 'Metrics unavailable' : summary ? 'Metrics available' : 'Loading metrics'}
+        </div>
       </section>
 
       <section className="kpi-strip" aria-label="Today's key metrics">

@@ -1,4 +1,4 @@
-/** Minimal typed API client. Token is held in memory (no localStorage). */
+/** Minimal typed API client. The token survives reloads for this browser tab. */
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:4000';
 
@@ -155,6 +155,10 @@ export interface PaymentRow {
   status: string;
 }
 
+export interface UpstreamHealth {
+  source: 'mock' | 'rest' | 'relationship';
+}
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -165,22 +169,32 @@ export class ApiError extends Error {
   }
 }
 
-let authToken: string | null = null;
+const TOKEN_KEY = 'easdial.session.token';
+let authToken: string | null = typeof window === 'undefined' ? null : window.sessionStorage.getItem(TOKEN_KEY);
+
+export function hasStoredToken(): boolean {
+  return Boolean(authToken);
+}
+
 export function setToken(token: string | null): void {
   authToken = token;
+  if (typeof window === 'undefined') return;
+  if (token) window.sessionStorage.setItem(TOKEN_KEY, token);
+  else window.sessionStorage.removeItem(TOKEN_KEY);
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
     ...init,
     headers: {
-      'content-type': 'application/json',
+      ...(init.body !== undefined ? { 'content-type': 'application/json' } : {}),
       ...(authToken ? { authorization: `Bearer ${authToken}` } : {}),
       ...(init.headers ?? {}),
     },
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
+    if (res.status === 401) setToken(null);
     const err = body?.error ?? {};
     throw new ApiError(res.status, err.code ?? 'error', err.message ?? 'Request failed');
   }
@@ -188,6 +202,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
+  upstreamHealth: () => request<UpstreamHealth>('/health/upstream'),
   login: (email: string, password: string) =>
     request<{ token: string; user: SessionUser }>('/auth/login', {
       method: 'POST',
