@@ -15,13 +15,13 @@ export function AdminPortal() {
   const [loadingRelationships, setLoadingRelationships] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [relationshipId, setRelationshipId] = useState('');
   const [busy, setBusy] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<SessionUser | null>(null);
   const [deleting, setDeleting] = useState(false);
+
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const passwordValid = password.length >= 8;
 
@@ -83,7 +83,7 @@ export function AdminPortal() {
         relationshipId: relationship.id,
         relationshipName: relationship.name,
       });
-      setNotice(`Created ${email} → ${relationship.name}`);
+      setNotice(`Created ${email} for ${relationship.name}`);
       setEmail('');
       setPassword('');
       setRelationshipId('');
@@ -113,142 +113,186 @@ export function AdminPortal() {
   }
 
   const relationshipHint = loadingRelationships
-    ? 'Loading relationships…'
+    ? 'Loading relationships...'
     : relationships.length
       ? `${relationships.length} ED relationships available to allocate.`
       : 'No ED relationships were returned by the configured data source.';
+  const customerAccounts = users.filter((account) => account.role === 'user');
+  const assignedAccounts = customerAccounts.filter((account) => account.relationshipId).length;
 
   return (
     <div className="admin-shell">
-      <header className="topbar">
-        <div className="brand-mark">
-          <span className="brand-symbol">))</span>
+      <header className="admin-topbar">
+        <div className="admin-brand-lockup">
+          <span className="admin-brand-icon" aria-hidden="true"><i /><i /></span>
           <div>
-            <div className="brand-name">{brand.name} Admin</div>
-            <div className="brand-sub">User &amp; relationship management</div>
+            <div className="admin-brand-name">{brand.name}</div>
+            <div className="admin-brand-sub">Administration console</div>
           </div>
         </div>
-        <div className="topbar-right">
-          <span className="who">{user?.email}</span>
-          <button className="btn btn-link" onClick={logout}>Sign out</button>
+        <div className="admin-account-menu">
+          <span className="admin-avatar" aria-hidden="true">{user?.email?.charAt(0).toUpperCase() ?? 'A'}</span>
+          <span className="admin-account-copy"><small>Signed in as</small><strong>{user?.email}</strong></span>
+          <button className="admin-signout" onClick={logout}>Sign out</button>
         </div>
       </header>
 
-      {error && <div className="alert alert-error" role="alert">{error}</div>}
-      {notice && <div className="alert alert-ok" role="status">{notice}</div>}
-      {upstream?.source === 'mock' && (
-        <div className="alert alert-warn" role="status">
-          Demo data is active. New users work, but their dashboard and reports are generated mock records until the live Peeredge source is configured.
-        </div>
-      )}
-
-      <section className="panel admin-create-panel">
-        <div className="admin-section-head">
-          <div>
-            <h2>Create a portal user</h2>
-            <p>Each customer account is limited to one dedicated relationship.</p>
+      <main className="admin-main">
+        <section className="admin-hero">
+          <div className="admin-hero-copy">
+            <span className="admin-eyebrow">Access operations</span>
+            <h1>Portal administration</h1>
+            <p>Create customer access, allocate one relationship, and monitor account coverage from a single workspace.</p>
           </div>
-          <span className={`source-status ${loadingRelationships || !upstream ? 'loading' : upstream.source === 'mock' ? 'warn' : relationships.length ? 'ready' : 'error'}`}>
-            {loadingRelationships || !upstream ? 'Loading source' : upstream.source === 'mock' ? 'Mock data' : relationships.length ? 'Live source' : 'Source unavailable'}
-          </span>
-        </div>
-        <form className="admin-form" onSubmit={onCreate}>
-          <label>
-            Email
-            <input type="email" value={email} autoComplete="off" onChange={(event) => setEmail(event.target.value)} required />
-          </label>
-          <label>
-            Temporary password
-            <input
-              type="password"
-              value={password}
-              autoComplete="new-password"
-              onChange={(event) => setPassword(event.target.value)}
-              minLength={8}
-              placeholder="Minimum 8 characters"
-              aria-invalid={password.length > 0 && !passwordValid}
-              aria-describedby="temporary-password-help"
-              required
-            />
-            <span id="temporary-password-help" className={`field-help ${password.length > 0 && !passwordValid ? 'invalid' : ''}`}>
-              {password.length > 0 && !passwordValid
-                ? `${password.length} of 8 required characters`
-                : 'Use at least 8 characters.'}
+          <div className="admin-source-card">
+            <span className={`source-status ${loadingRelationships || !upstream ? 'loading' : upstream.source === 'mock' ? 'warn' : relationships.length ? 'ready' : 'error'}`}>
+              {loadingRelationships || !upstream ? 'Checking source' : upstream.source === 'mock' ? 'Mock source' : relationships.length ? 'Peeredge connected' : 'Source unavailable'}
             </span>
-          </label>
-          <label>
-            Dedicated relationship
-            <select
-              value={relationshipId}
-              onChange={(event) => setRelationshipId(event.target.value)}
-              disabled={loadingRelationships || relationships.length === 0}
-              required
-            >
-              <option value="">{loadingRelationships ? 'Loading relationships…' : 'Select an ED relationship…'}</option>
-              {relationships.map((relationship) => (
-                <option key={relationship.id} value={relationship.id}>
-                  {relationship.name} (#{relationship.id})
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            className="btn btn-primary"
-            disabled={busy || loadingRelationships || !relationshipId || !emailValid || !passwordValid}
-          >
-            {busy ? 'Creating…' : 'Create user'}
-          </button>
-        </form>
-        <p className="hint" aria-live="polite">{relationshipHint}</p>
-      </section>
-
-      <section className="panel admin-users-panel">
-        <div className="admin-section-head">
-          <div>
-            <h2>Portal users</h2>
-            <p>Review the relationship assigned to every customer login.</p>
+            <small>Relationship directory</small>
+            <strong>{loadingRelationships ? 'Syncing...' : `${relationships.length} records available`}</strong>
           </div>
-          {!loadingUsers && <span className="user-count">{users.length} {users.length === 1 ? 'account' : 'accounts'}</span>}
+        </section>
+
+        {error && <div className="alert admin-alert alert-error" role="alert">{error}</div>}
+        {notice && <div className="alert admin-alert alert-ok" role="status">{notice}</div>}
+        {upstream?.source === 'mock' && (
+          <div className="alert admin-alert alert-warn" role="status">
+            Demo data is active. Customer reports will use generated records until the live Peeredge source is configured.
+          </div>
+        )}
+
+        <section className="admin-metrics" aria-label="Portal account summary">
+          <article className="admin-metric admin-metric-primary">
+            <span className="admin-metric-icon" aria-hidden="true">01</span>
+            <div><small>Portal accounts</small><strong>{loadingUsers ? '--' : users.length}</strong></div>
+          </article>
+          <article className="admin-metric">
+            <span className="admin-metric-icon" aria-hidden="true">02</span>
+            <div><small>Customer access</small><strong>{loadingUsers ? '--' : assignedAccounts}</strong></div>
+          </article>
+          <article className="admin-metric">
+            <span className="admin-metric-icon" aria-hidden="true">03</span>
+            <div><small>Available relationships</small><strong>{loadingRelationships ? '--' : relationships.length}</strong></div>
+          </article>
+        </section>
+
+        <div className="admin-golden-grid">
+          <section className="admin-neu-panel admin-create-panel">
+            <div className="admin-section-head">
+              <div>
+                <span className="admin-section-kicker">New access</span>
+                <h2>Create a portal user</h2>
+                <p>Assign one dedicated Peeredge relationship to a customer login.</p>
+              </div>
+              <span className="admin-step">01</span>
+            </div>
+            <form className="admin-form" onSubmit={onCreate}>
+              <label className="admin-field">
+                <span>Email address</span>
+                <input type="email" value={email} autoComplete="off" placeholder="name@company.com" onChange={(event) => setEmail(event.target.value)} required />
+                <small className="field-help">Used as the customer's sign-in ID.</small>
+              </label>
+              <label className="admin-field">
+                <span>Temporary password</span>
+                <input
+                  type="password"
+                  value={password}
+                  autoComplete="new-password"
+                  onChange={(event) => setPassword(event.target.value)}
+                  minLength={8}
+                  placeholder="Minimum 8 characters"
+                  aria-invalid={password.length > 0 && !passwordValid}
+                  aria-describedby="temporary-password-help"
+                  required
+                />
+                <small id="temporary-password-help" className={`field-help ${password.length > 0 && !passwordValid ? 'invalid' : ''}`}>
+                  {password.length > 0 && !passwordValid
+                    ? `${password.length} of 8 required characters`
+                    : 'The customer can use this password immediately.'}
+                </small>
+              </label>
+              <label className="admin-field">
+                <span>Dedicated relationship</span>
+                <select
+                  value={relationshipId}
+                  onChange={(event) => setRelationshipId(event.target.value)}
+                  disabled={loadingRelationships || relationships.length === 0}
+                  required
+                >
+                  <option value="">{loadingRelationships ? 'Loading relationships...' : 'Select an ED relationship...'}</option>
+                  {relationships.map((relationship) => (
+                    <option key={relationship.id} value={relationship.id}>
+                      {relationship.name} (#{relationship.id})
+                    </option>
+                  ))}
+                </select>
+                <small className="field-help" aria-live="polite">{relationshipHint}</small>
+              </label>
+              <button
+                className="admin-create-button"
+                disabled={busy || loadingRelationships || !relationshipId || !emailValid || !passwordValid}
+              >
+                <span>{busy ? 'Creating account...' : 'Create customer account'}</span>
+                <b aria-hidden="true">+</b>
+              </button>
+            </form>
+          </section>
+
+          <section className="admin-neu-panel admin-users-panel">
+            <div className="admin-section-head">
+              <div>
+                <span className="admin-section-kicker">Directory</span>
+                <h2>Portal users</h2>
+                <p>Review every customer login and its allocated relationship.</p>
+              </div>
+              {!loadingUsers && <span className="user-count">{users.length} {users.length === 1 ? 'account' : 'accounts'}</span>}
+            </div>
+            <div className="admin-table-wrap">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Account</th>
+                    <th>Role</th>
+                    <th>Allocated relationship</th>
+                    <th><span className="sr-only">Actions</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loadingUsers && (
+                    <tr><td colSpan={4} className="admin-table-state">Loading portal users...</td></tr>
+                  )}
+                  {!loadingUsers && users.length === 0 && (
+                    <tr><td colSpan={4} className="admin-table-state">No portal users found.</td></tr>
+                  )}
+                  {!loadingUsers && users.map((account) => (
+                    <tr key={account.id}>
+                      <td>
+                        <span className="admin-user-cell">
+                          <i aria-hidden="true">{account.email.charAt(0).toUpperCase()}</i>
+                          <span><strong>{account.email}</strong><small>{account.role === 'admin' ? 'Workspace administrator' : 'Customer portal access'}</small></span>
+                        </span>
+                      </td>
+                      <td><span className={`role-badge ${account.role}`}>{account.role}</span></td>
+                      <td className="admin-relationship-cell">{account.relationshipName ? `${account.relationshipName} (#${account.relationshipId})` : 'Not assigned'}</td>
+                      <td className="admin-table-action">
+                        {account.role !== 'admin' && (
+                          <button
+                            className="admin-delete-button"
+                            aria-label={`Delete ${account.email}`}
+                            onClick={() => setPendingDelete(account)}
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
         </div>
-        <div className="admin-table-wrap">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Allocated relationship</th>
-                <th><span className="sr-only">Actions</span></th>
-              </tr>
-            </thead>
-            <tbody>
-              {loadingUsers && (
-                <tr><td colSpan={4} className="admin-table-state">Loading portal users…</td></tr>
-              )}
-              {!loadingUsers && users.length === 0 && (
-                <tr><td colSpan={4} className="admin-table-state">No portal users found.</td></tr>
-              )}
-              {!loadingUsers && users.map((account) => (
-                <tr key={account.id}>
-                  <td>{account.email}</td>
-                  <td><span className={`role-badge ${account.role}`}>{account.role}</span></td>
-                  <td>{account.relationshipName ? `${account.relationshipName} (#${account.relationshipId})` : '—'}</td>
-                  <td className="admin-table-action">
-                    {account.role !== 'admin' && (
-                      <button
-                        className="btn btn-link btn-danger"
-                        aria-label={`Delete ${account.email}`}
-                        onClick={() => setPendingDelete(account)}
-                      >
-                        Delete
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      </main>
 
       {pendingDelete && (
         <div className="modal-backdrop" onClick={() => !deleting && setPendingDelete(null)}>
@@ -269,7 +313,7 @@ export function AdminPortal() {
             <div className="modal-foot">
               <button className="btn btn-ghost btn-sm" disabled={deleting} onClick={() => setPendingDelete(null)}>Cancel</button>
               <button className="btn btn-danger-solid btn-sm" disabled={deleting} onClick={() => void confirmDelete()}>
-                {deleting ? 'Deleting…' : 'Delete user'}
+                {deleting ? 'Deleting...' : 'Delete user'}
               </button>
             </div>
           </div>

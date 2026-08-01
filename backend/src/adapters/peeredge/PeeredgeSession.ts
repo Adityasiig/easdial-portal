@@ -31,6 +31,7 @@ const BROWSER_UA =
 export class PeeredgeSession {
   private token: string | null = null;
   private tokenAt = 0;
+  private loginInFlight: Promise<void> | null = null;
 
   constructor(private readonly cfg: PeeredgeAuthConfig) {}
 
@@ -58,13 +59,23 @@ export class PeeredgeSession {
   async refresh(): Promise<void> {
     if (this.cfg.sessionCookie) return;
     this.token = null;
-    await this.login();
+    await this.ensureLogin();
   }
 
   private async getToken(): Promise<string> {
     if (this.token && Date.now() - this.tokenAt < TOKEN_TTL_MS) return this.token;
-    await this.login();
+    await this.ensureLogin();
     return this.token as string;
+  }
+
+  /** Share one login across concurrent API reads (dashboard/filter requests). */
+  private async ensureLogin(): Promise<void> {
+    if (!this.loginInFlight) {
+      this.loginInFlight = this.login().finally(() => {
+        this.loginInFlight = null;
+      });
+    }
+    await this.loginInFlight;
   }
 
   private async login(): Promise<void> {

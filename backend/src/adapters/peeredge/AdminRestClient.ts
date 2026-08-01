@@ -23,6 +23,7 @@ import { AppError } from '../../lib/errors.js';
 import { PeeredgeSession } from './PeeredgeSession.js';
 import { relationshipStartsWithBrandPrefix } from './relationshipFilter.js';
 import { buildCdrColumns } from './cdrQuery.js';
+import { scopedTrunkGroups } from './trunkGroupFilter.js';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -317,7 +318,13 @@ export class AdminRestClient implements SwitchDataClient {
   }
 
   private rowCarrierId(row: JsonRecord): string {
-    return stringValue(row.carrier_id_customer ?? row.carrier_id ?? row.id);
+    return stringValue(
+      row.carrier_id_customer
+      ?? row.customer_carrier_id
+      ?? row.relationship_id
+      ?? row.carrier_id
+      ?? row.id,
+    );
   }
 
   private todayBounds(): { start: string; end: string } {
@@ -359,22 +366,18 @@ export class AdminRestClient implements SwitchDataClient {
   ): Promise<Array<{ id: string; label: string }>> {
     const carrier = await this.getCarrier(relationshipId);
     const carrierName = stringValue(carrier.carrier_name).trim();
-    const prefix = `${carrierName} -`;
     const trunkGroupType = direction === 'termination' ? '0' : '1';
     const locations = location ? [location] : await this.getLocations();
     const payloads = await Promise.all((locations.length ? locations : ['']).map((location) => {
-      const params = new URLSearchParams({ trunk_group_type: trunkGroupType, relationship_type: '1' });
+      const params = new URLSearchParams({
+        trunk_group_type: trunkGroupType,
+        relationship_type: '1',
+        carrier_id: relationshipId,
+      });
       if (location) params.set('location', location);
       return this.getJson<unknown>(`/trunk_groups/by_type_and_location?${params}`);
     }));
-    const groups = payloads.flatMap(records).map((row) => ({
-      id: stringValue(row.id ?? row.trunk_group_id),
-      composite: stringValue(row.carrier_name ?? row.complete_name ?? row.trunk_group_name),
-    })).filter((group) => group.id && group.composite.toLowerCase().startsWith(prefix.toLowerCase()));
-    return [...new Map(groups.map((group) => [group.id, {
-      id: group.id,
-      label: group.composite.slice(prefix.length).trim() || group.composite,
-    }])).values()].sort((a, b) => a.label.localeCompare(b.label));
+    return scopedTrunkGroups(payloads.flatMap(records), relationshipId, carrierName);
   }
 
   private async getVendorTrunkGroups(direction: Direction, location?: string): Promise<Array<{ id: string; label: string }>> {
