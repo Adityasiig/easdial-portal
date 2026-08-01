@@ -111,12 +111,16 @@ export class MockSwitchClient implements SwitchDataClient {
     }));
   }
 
-  async getCdrFilters(_relationshipId: string, _direction: Direction): Promise<CdrFilterOptions> {
+  async getCdrFilters(_relationshipId: string, _direction: Direction, _location?: string): Promise<CdrFilterOptions> {
     return {
       locations: ['dallas', 'los-angeles'],
-      trunkGroups: [
+      customerTrunkGroups: [
         { id: 'usa-sd', label: 'USA SD' },
         { id: 'usa-sd-static', label: 'USA SD STATIC' },
+      ],
+      vendorTrunkGroups: [
+        { id: 'vendor-primary', label: 'Pathway Telco / USA Primary' },
+        { id: 'vendor-backup', label: 'Aertel Ltd / USA Backup' },
       ],
     };
   }
@@ -147,6 +151,8 @@ export class MockSwitchClient implements SwitchDataClient {
         releaseCode: code,
         releaseCause: cause,
         duration: answered ? 30 + (s % 600) : 0,
+        customerTrunk: `${trunk}${i % 2 === 0 ? '' : ' STATIC'}`,
+        vendorTrunk: i % 2 === 0 ? 'Pathway Telco / USA Primary' : 'Aertel Ltd / USA Backup',
         relationshipTrunk: `${trunk}${i % 2 === 0 ? '' : ' STATIC'}`,
         origJuris: s % 3 === 0 ? 'INTERSTATE' : s % 3 === 1 ? 'INTRASTATE' : 'INDETERMINATE',
         rate: Math.round((0.002 + (s % 40) / 10_000) * 100_000) / 100_000,
@@ -166,7 +172,12 @@ export class MockSwitchClient implements SwitchDataClient {
       if (query.releaseCode && row.releaseCode !== query.releaseCode) return false;
       if (query.minDuration !== undefined && row.duration < query.minDuration) return false;
       if (query.maxDuration !== undefined && row.duration > query.maxDuration) return false;
-      if (query.trunkGroupLabel && !row.relationshipTrunk.toLowerCase().endsWith(`/ ${query.trunkGroupLabel.toLowerCase()}`)) return false;
+      if (query.customerTrunkGroupId === 'usa-sd' && !row.customerTrunk.endsWith('/ USA SD')) return false;
+      if (query.customerTrunkGroupId === 'usa-sd-static' && !row.customerTrunk.endsWith('/ USA SD STATIC')) return false;
+      if (query.vendorTrunkGroupId === 'vendor-primary' && row.vendorTrunk !== 'Pathway Telco / USA Primary') return false;
+      if (query.vendorTrunkGroupId === 'vendor-backup' && row.vendorTrunk !== 'Aertel Ltd / USA Backup') return false;
+      if (query.customerTrunkGroupLabel && !row.customerTrunk.toLowerCase().endsWith(`/ ${query.customerTrunkGroupLabel.toLowerCase()}`)) return false;
+      if (query.vendorTrunkGroupLabel && row.vendorTrunk.toLowerCase() !== query.vendorTrunkGroupLabel.toLowerCase()) return false;
       return true;
     });
   }

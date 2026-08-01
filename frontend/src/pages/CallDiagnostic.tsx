@@ -14,15 +14,17 @@ import { Shell } from '../components/Shell';
 const TOP_TABS = ['Termination', 'Origination', 'Live Calls', 'CDR Export'] as const;
 type TopTab = (typeof TOP_TABS)[number];
 type RangePreset = 'last-10-min' | 'last-hour' | 'last-6-hours' | 'last-12-hours' | 'today' | 'custom';
+const PAGE_SIZE = 25;
 
 const STATUS_TABS: Array<{ label: string; value: CdrStatus }> = [
-  { label: 'All', value: 'all' },
+  { label: 'All calls', value: 'all' },
   { label: 'Completed', value: 'completed' },
   { label: 'Failed', value: 'failed' },
 ];
 
 const utcInputValue = (date: Date) => date.toISOString().slice(0, 19);
-const toIso = (value: string) => new Date(`${value}${value.length === 16 ? ':00' : ''}Z`).toISOString();
+const parseUtc = (value: string) => new Date(`${value}${value.length === 16 ? ':00' : ''}Z`);
+const toIso = (value: string) => parseUtc(value).toISOString();
 
 function rangeBounds(preset: Exclude<RangePreset, 'custom'>): { start: string; end: string } {
   const end = new Date();
@@ -49,8 +51,10 @@ export function CallDiagnostic() {
   const [startTime, setStartTime] = useState(initialRange.start);
   const [endTime, setEndTime] = useState(initialRange.end);
   const [filters, setFilters] = useState<CdrFilterOptions | null>(null);
+  const [filterBusy, setFilterBusy] = useState(false);
   const [location, setLocation] = useState('');
-  const [trunkGroupId, setTrunkGroupId] = useState('');
+  const [customerTrunkGroupId, setCustomerTrunkGroupId] = useState('');
+  const [vendorTrunkGroupId, setVendorTrunkGroupId] = useState('');
   const [ani, setAni] = useState('');
   const [dnis, setDnis] = useState('');
   const [releaseCode, setReleaseCode] = useState('');
@@ -65,6 +69,7 @@ export function CallDiagnostic() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState('');
+  const [page, setPage] = useState(1);
 
   const direction: Direction = top === 'Origination' ? 'origination' : 'termination';
   const isCdrTab = top === 'Termination' || top === 'Origination';
@@ -74,17 +79,37 @@ export function CallDiagnostic() {
     let active = true;
     setFilters(null);
     setError(null);
-    api.cdrFilters(direction).then((options) => {
+    api.cdrFilters(direction).then(async (options) => {
       if (!active) return;
-      setFilters(options);
-      setLocation((current) => current && options.locations.includes(current) ? current : (options.locations[0] ?? ''));
-      setTrunkGroupId('');
+      const nextLocation = location && options.locations.includes(location) ? location : (options.locations[0] ?? '');
+      const scoped = nextLocation ? await api.cdrFilters(direction, nextLocation) : options;
+      if (!active) return;
+      setFilters({ ...scoped, locations: options.locations });
+      setLocation(nextLocation);
+      setCustomerTrunkGroupId('');
+      setVendorTrunkGroupId('');
     }).catch((err) => active && setError(err.message));
     return () => { active = false; };
   }, [direction, isCdrTab]);
 
+  const changeLocation = async (nextLocation: string) => {
+    setLocation(nextLocation);
+    setCustomerTrunkGroupId('');
+    setVendorTrunkGroupId('');
+    setFilterBusy(true);
+    try {
+      const scoped = await api.cdrFilters(direction, nextLocation);
+      setFilters((current) => ({ ...scoped, locations: current?.locations ?? scoped.locations }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to load trunk groups for this location.');
+    } finally {
+      setFilterBusy(false);
+    }
+  };
+
   useEffect(() => {
     setQ('');
+    setPage(1);
     setError(null);
     if (top === 'Live Calls') {
       let active = true;
@@ -122,18 +147,22 @@ export function CallDiagnostic() {
       setError('Maximum duration must be greater than or equal to minimum duration.');
       return;
     }
-    const selectedTrunk = filters?.trunkGroups.find((group) => group.id === trunkGroupId);
+    const customer = filters?.customerTrunkGroups.find((group) => group.id === customerTrunkGroupId);
+    const vendor = filters?.vendorTrunkGroups.find((group) => group.id === vendorTrunkGroupId);
     setRows(null);
     setGenerated(true);
     setBusy(true);
+    setPage(1);
     try {
       const data = await api.cdrs({
         direction,
         startTime: toIso(startTime),
         endTime: toIso(endTime),
         location: location || undefined,
-        trunkGroupId: trunkGroupId || undefined,
-        trunkGroupLabel: selectedTrunk?.label,
+        customerTrunkGroupId: customerTrunkGroupId || undefined,
+        customerTrunkGroupLabel: customer?.label,
+        vendorTrunkGroupId: vendorTrunkGroupId || undefined,
+        vendorTrunkGroupLabel: vendor?.label,
         ani: ani.trim() || undefined,
         dnis: dnis.trim() || undefined,
         releaseCode: releaseCode.trim() || undefined,
@@ -163,7 +192,8 @@ export function CallDiagnostic() {
     setStartTime(bounds.start);
     setEndTime(bounds.end);
     setLocation(filters?.locations[0] ?? '');
-    setTrunkGroupId('');
+    setCustomerTrunkGroupId('');
+    setVendorTrunkGroupId('');
     setAni('');
     setDnis('');
     setReleaseCode('');
@@ -174,19 +204,25 @@ export function CallDiagnostic() {
     setRows(null);
     setGenerated(false);
     setQ('');
+    setPage(1);
     setStatus('all');
     setError(null);
   };
 
   const filtered = useMemo(() => rows?.filter((row) => {
     const term = q.trim().toLowerCase();
-    return !term || [row.ani, row.dnis, row.lrn, row.releaseCode, row.releaseCause, row.relationshipTrunk].some((value) => value.toLowerCase().includes(term));
+    return !term || [row.ani, row.dnis, row.lrn, row.releaseCode, row.releaseCause, row.customerTrunk, row.vendorTrunk]
+      .some((value) => value.toLowerCase().includes(term));
   }), [q, rows]);
+
+  useEffect(() => { setPage(1); }, [q]);
+  const pageCount = Math.max(1, Math.ceil((filtered?.length ?? 0) / PAGE_SIZE));
+  const visibleRows = filtered?.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const exportCsv = () => {
     if (!filtered?.length) return;
-    const headers = ['Date Time', 'ANI', 'DNIS', 'LRN', 'Release Code', 'Release Cause', 'Duration', 'Relationship / Trunk', 'Orig Juris', 'Rate'];
-    const values = filtered.map((row) => [row.dateTime, row.ani, row.dnis, row.lrn, row.releaseCode, row.releaseCause, row.duration, row.relationshipTrunk, row.origJuris, row.rate]);
+    const headers = ['Date Time', 'ANI', 'DNIS', 'LRN', 'Release Code', 'Release Cause', 'Duration', 'Customer Trunk', 'Vendor Trunk', 'Orig Juris', 'Rate'];
+    const values = filtered.map((row) => [row.dateTime, row.ani, row.dnis, row.lrn, row.releaseCode, row.releaseCause, row.duration, row.customerTrunk, row.vendorTrunk, row.origJuris, row.rate]);
     const csv = [headers, ...values].map((record) => record.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(',')).join('\r\n');
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
     const link = document.createElement('a');
@@ -198,8 +234,8 @@ export function CallDiagnostic() {
 
   return (
     <Shell title="CDR Diagnostic">
-      <div className="tabs page-tabs diagnostic-main-tabs">
-        {TOP_TABS.map((tab) => <button key={tab} className={`tab ${tab === top ? 'tab-active' : ''}`} onClick={() => setTop(tab)}>{tab}</button>)}
+      <div className="tabs page-tabs diagnostic-main-tabs" role="tablist" aria-label="CDR mode">
+        {TOP_TABS.map((tab) => <button key={tab} role="tab" aria-selected={tab === top} className={`tab ${tab === top ? 'tab-active' : ''}`} onClick={() => setTop(tab)}>{tab}</button>)}
       </div>
 
       {error && <div className="alert alert-error">{error}</div>}
@@ -210,65 +246,95 @@ export function CallDiagnostic() {
       {top === 'CDR Export' && <CdrExportsPanel rows={exportRows} query={q} setQuery={setQ} />}
 
       {isCdrTab && (
-        <div className="diagnostic-workspace">
-          <section className="peeredge-filter-area" aria-label="CDR report filters">
-            <div className="diagnostic-time-row">
-              <select className="control-select preset-select" value={range} aria-label="Time range preset" onChange={(event) => changeRange(event.target.value as RangePreset)}>
-                <option value="last-10-min">Last 10 Min</option>
-                <option value="last-hour">Last Hour</option>
-                <option value="last-6-hours">Last 6 Hours</option>
-                <option value="last-12-hours">Last 12 Hours</option>
-                <option value="today">Today</option>
-                <option value="custom">Custom</option>
-              </select>
-              <DateRangePicker start={startTime} end={endTime} onChange={(start, end) => { setRange('custom'); setStartTime(start); setEndTime(end); }} />
+        <div className="cdr-workspace">
+          <section className="panel cdr-query-panel" aria-label="CDR report filters">
+            <div className="cdr-panel-heading">
+              <div><h2>Search call records</h2><p>Build a scoped report using GMT. Customer and vendor trunks are filtered independently.</p></div>
+              <span className="scope-chip">Customer scoped</span>
             </div>
 
-            <div className="peeredge-filter-grid filter-grid-primary">
-              <select className="control-select" aria-label="Switch location" value={location} onChange={(event) => setLocation(event.target.value)} disabled={!filters}>
-                {!filters && <option>Loading…</option>}
-                {filters?.locations.map((item) => <option key={item} value={item}>{item}</option>)}
-              </select>
-              <select className="control-select" aria-label="Trunk group" value={trunkGroupId} onChange={(event) => setTrunkGroupId(event.target.value)} disabled={!filters}>
-                <option value="">All Trunk Groups</option>
-                {filters?.trunkGroups.map((group) => <option key={group.id} value={group.id}>{group.label}</option>)}
-              </select>
-              <input className="control-input" placeholder="Release Code" aria-label="Release code" value={releaseCode} onChange={(event) => setReleaseCode(event.target.value)} />
-              <input className="control-input" inputMode="tel" placeholder="ANI" aria-label="ANI" value={ani} onChange={(event) => setAni(event.target.value)} />
-              <input className="control-input" inputMode="tel" placeholder="DNIS" aria-label="DNIS" value={dnis} onChange={(event) => setDnis(event.target.value)} />
+            <div className="cdr-range-row">
+              <Field label="Time range">
+                <select className="control-select" value={range} aria-label="Time range preset" onChange={(event) => changeRange(event.target.value as RangePreset)}>
+                  <option value="last-10-min">Last 10 minutes</option>
+                  <option value="last-hour">Last hour</option>
+                  <option value="last-6-hours">Last 6 hours</option>
+                  <option value="last-12-hours">Last 12 hours</option>
+                  <option value="today">Today</option>
+                  <option value="custom">Custom</option>
+                </select>
+              </Field>
+              <Field label="Reporting period" className="cdr-period-field">
+                <DateRangePicker start={startTime} end={endTime} onChange={(start, end) => { setRange('custom'); setStartTime(start); setEndTime(end); }} />
+              </Field>
             </div>
-            <div className="peeredge-filter-grid filter-grid-secondary">
-              <input className="control-input" placeholder="SIP Call ID" aria-label="SIP Call ID" value={callId} onChange={(event) => setCallId(event.target.value)} />
-              <input className="control-input" type="number" min="0" placeholder="Minimum Duration" aria-label="Minimum duration" value={minDuration} onChange={(event) => setMinDuration(event.target.value)} />
-              <input className="control-input" type="number" min="0" placeholder="Maximum Duration" aria-label="Maximum duration" value={maxDuration} onChange={(event) => setMaxDuration(event.target.value)} />
-              <label className="include-leg"><input type="checkbox" checked={includeBLeg} onChange={(event) => setIncludeBLeg(event.target.checked)} /><span>Include B Leg</span></label>
+
+            <div className="cdr-primary-filters">
+              <Field label="Switch location">
+                <select className="control-select" aria-label="Switch location" value={location} onChange={(event) => void changeLocation(event.target.value)} disabled={!filters || filterBusy}>
+                  {!filters && <option>Loading…</option>}
+                  {filters?.locations.map((item) => <option key={item} value={item}>{item}</option>)}
+                </select>
+              </Field>
+              <Field label="Customer trunk">
+                <select className="control-select" aria-label="Customer trunk" value={customerTrunkGroupId} onChange={(event) => setCustomerTrunkGroupId(event.target.value)} disabled={!filters || filterBusy}>
+                  <option value="">All customer trunks</option>
+                  {filters?.customerTrunkGroups.map((group) => <option key={group.id} value={group.id}>{group.label}</option>)}
+                </select>
+              </Field>
+              <Field label="Vendor trunk">
+                <select className="control-select" aria-label="Vendor trunk" value={vendorTrunkGroupId} onChange={(event) => setVendorTrunkGroupId(event.target.value)} disabled={!filters || filterBusy}>
+                  <option value="">All vendor trunks</option>
+                  {filters?.vendorTrunkGroups.map((group) => <option key={group.id} value={group.id}>{group.label}</option>)}
+                </select>
+              </Field>
+            </div>
+
+            <details className="cdr-advanced" open>
+              <summary>Advanced filters</summary>
+              <div className="cdr-advanced-grid">
+                <Field label="ANI"><input className="control-input" inputMode="tel" placeholder="Calling number" value={ani} onChange={(event) => setAni(event.target.value)} /></Field>
+                <Field label="DNIS"><input className="control-input" inputMode="tel" placeholder="Dialed number" value={dnis} onChange={(event) => setDnis(event.target.value)} /></Field>
+                <Field label="SIP Call ID"><input className="control-input" placeholder="Exact call ID" value={callId} onChange={(event) => setCallId(event.target.value)} /></Field>
+                <Field label="Release code"><input className="control-input" placeholder="e.g. 16" value={releaseCode} onChange={(event) => setReleaseCode(event.target.value)} /></Field>
+                <Field label="Minimum duration"><input className="control-input" type="number" min="0" placeholder="Seconds" value={minDuration} onChange={(event) => setMinDuration(event.target.value)} /></Field>
+                <Field label="Maximum duration"><input className="control-input" type="number" min="0" placeholder="Seconds" value={maxDuration} onChange={(event) => setMaxDuration(event.target.value)} /></Field>
+              </div>
+              <label className="include-leg"><input type="checkbox" checked={includeBLeg} onChange={(event) => setIncludeBLeg(event.target.checked)} /><span>Include B-leg records</span></label>
+            </details>
+
+            <div className="cdr-query-footer">
+              <div className="cdr-status-tabs" role="tablist" aria-label="Call status">
+                {STATUS_TABS.map((item) => <button key={item.value} type="button" role="tab" aria-selected={item.value === status} className={item.value === status ? 'active' : ''} onClick={() => chooseStatus(item.value)}>{item.label}</button>)}
+              </div>
+              <div className="toolbar-actions">
+                <button className="btn btn-ghost btn-sm" type="button" onClick={reset}>Reset</button>
+                <button className="btn btn-primary btn-sm" type="button" onClick={() => void runReport()} disabled={busy}><RefreshIcon />{busy ? 'Generating…' : 'Generate report'}</button>
+              </div>
             </div>
           </section>
 
-          <div className="diagnostic-report-tabs" role="tablist" aria-label="Call status">
-            {STATUS_TABS.map((item) => <button key={item.value} role="tab" aria-selected={item.value === status} className={item.value === status ? 'active' : ''} onClick={() => chooseStatus(item.value)}>{item.label}{item.value === 'all' && rows && <span className="result-count">{rows.length}</span>}</button>)}
-          </div>
-
-          <section className="panel table-panel diagnostic-results">
-            <div className="table-toolbar">
-              <input className="search-input" aria-label="Search report results" placeholder="Search…" value={q} onChange={(event) => setQ(event.target.value)} />
-              <div className="toolbar-actions">
-                <button className="btn btn-primary btn-sm" onClick={() => void runReport()} disabled={busy}><RefreshIcon />{busy ? 'Generating…' : 'Generate'}</button>
-                <button className="btn btn-ghost btn-sm" onClick={reset}>×&nbsp; Reset</button>
-                <button className="btn btn-ghost btn-sm" onClick={exportCsv} disabled={!filtered?.length}>Export</button>
+          <section className="panel table-panel cdr-results-panel">
+            <div className="cdr-results-head">
+              <div><h2>Call records</h2><p>{generated ? `${filtered?.length ?? 0} matching records` : 'Generate a report to view call details'}</p></div>
+              <div className="cdr-results-tools">
+                <input className="search-input" aria-label="Search report results" placeholder="Search results" value={q} onChange={(event) => setQ(event.target.value)} />
+                <button className="btn btn-ghost btn-sm" onClick={exportCsv} disabled={!filtered?.length}>Export CSV</button>
               </div>
             </div>
-            <div className="table-scroll">
+            <div className="table-scroll cdr-table-scroll">
               <table className="report-table cdr-table">
-                <thead><tr><th>Date Time</th><th>ANI</th><th>DNIS</th><th>LRN</th><th>Release Code</th><th>Release Cause</th><th className="num">Duration</th><th>Customer - Trunk</th><th>Orig Juris</th><th className="num">Rate</th></tr></thead>
-                <tbody>{filtered?.map((row, index) => <tr key={`${row.dateTime}-${row.ani}-${index}`}>
-                  <td>{formatUtc(row.dateTime)}</td><td>{row.ani || '—'}</td><td>{row.dnis || '—'}</td><td>{row.lrn || '—'}</td>
-                  <td>{row.releaseCode || '—'}</td><td>{row.releaseCause || '—'}</td><td className="num">{row.duration}</td><td>{row.relationshipTrunk || '—'}</td><td>{row.origJuris || '—'}</td><td className="num">{row.rate.toFixed(5)}</td>
+                <thead><tr><th>Date / Time</th><th>ANI</th><th>DNIS</th><th>LRN</th><th>Release</th><th>Cause</th><th className="num">Duration</th><th>Customer trunk</th><th>Vendor trunk</th><th>Juris</th><th className="num">Rate</th></tr></thead>
+                <tbody>{visibleRows?.map((row, index) => <tr key={`${row.dateTime}-${row.ani}-${index}`}>
+                  <td className="date-cell">{formatUtc(row.dateTime)}</td><td className="mono-cell">{row.ani || '—'}</td><td className="mono-cell">{row.dnis || '—'}</td><td className="mono-cell">{row.lrn || '—'}</td>
+                  <td><span className={`release-pill ${row.duration > 0 ? 'ok' : 'failed'}`}>{row.releaseCode || '—'}</span></td><td>{row.releaseCause || '—'}</td><td className="num">{formatDuration(row.duration)}</td>
+                  <td><TrunkCell value={row.customerTrunk} /></td><td><TrunkCell value={row.vendorTrunk} /></td><td>{row.origJuris || '—'}</td><td className="num">{row.rate.toFixed(5)}</td>
                 </tr>)}</tbody>
               </table>
             </div>
             {generated && rows === null && !error && <div className="chart-skeleton compact-skeleton" />}
-            {(!generated || (filtered !== undefined && filtered.length === 0)) && <EmptyState title={generated ? 'No calls matched' : 'Ready to generate'} description={generated ? 'Adjust the filters and generate the report again.' : 'Choose the date and filters, then select Generate.'} />}
+            {(!generated || (filtered !== undefined && filtered.length === 0)) && <EmptyState title={generated ? 'No calls matched' : 'No report generated'} description={generated ? 'Change one or more filters and generate the report again.' : 'Choose the required filters above and generate a scoped CDR report.'} />}
+            {Boolean(filtered?.length) && <div className="cdr-pagination"><span>Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered?.length ?? 0)} of {filtered?.length}</span><div><button disabled={page === 1} onClick={() => setPage((current) => current - 1)}>Previous</button><span>Page {page} of {pageCount}</span><button disabled={page === pageCount} onClick={() => setPage((current) => current + 1)}>Next</button></div></div>}
           </section>
         </div>
       )}
@@ -276,7 +342,20 @@ export function CallDiagnostic() {
   );
 }
 
-const parseUtc = (value: string) => new Date(`${value}${value.length === 16 ? ':00' : ''}Z`);
+function Field({ label, children, className = '' }: { label: string; children: React.ReactNode; className?: string }) {
+  return <label className={`cdr-field ${className}`}><span>{label}</span>{children}</label>;
+}
+
+function TrunkCell({ value }: { value: string }) {
+  const [relationship, ...rest] = value.split(' / ');
+  return <span className="trunk-cell"><span>{relationship || '—'}</span>{rest.length > 0 && <small>{rest.join(' / ')}</small>}</span>;
+}
+
+function formatDuration(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}m ${seconds % 60}s`;
+}
 
 function RefreshIcon() {
   return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden><path d="M20 11a8 8 0 0 0-14.7-4M4 4v5h5M4 13a8 8 0 0 0 14.7 4M20 20v-5h-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>;
@@ -284,17 +363,17 @@ function RefreshIcon() {
 
 function LiveCallsPanel({ rows, query, setQuery, refresh }: { rows: LiveCallRow[] | null; query: string; setQuery: (value: string) => void; refresh: () => void }) {
   const filtered = rows?.filter((row) => Object.values(row).some((value) => String(value).toLowerCase().includes(query.toLowerCase())));
-  return <section className="panel table-panel diagnostic-results">
-    <div className="table-toolbar"><input className="search-input" placeholder="Search…" value={query} onChange={(event) => setQuery(event.target.value)} /><div className="toolbar-actions"><button className="btn btn-ghost btn-sm" onClick={refresh}><RefreshIcon />Refresh</button></div></div>
-    <div className="table-scroll"><table className="report-table"><thead><tr><th>Relationship</th><th>Trunk Group</th><th>Start</th><th>ANI</th><th>DNIS</th><th className="num">Duration</th></tr></thead><tbody>{filtered?.map((row, index) => <tr key={`${row.start}-${index}`}><td>{row.relationship}</td><td>{row.trunkGroup}</td><td>{formatUtc(row.start)}</td><td>{row.ani}</td><td>{row.dnis}</td><td className="num">{row.duration}s</td></tr>)}</tbody></table></div>
-    {rows === null ? <div className="chart-skeleton compact-skeleton" /> : filtered?.length === 0 && <EmptyState title="No live calls" description="Active calls refresh automatically every 15 seconds." />}
+  return <section className="panel table-panel cdr-results-panel">
+    <div className="cdr-results-head"><div><h2>Live calls</h2><p>Scoped to this customer and refreshed every 15 seconds</p></div><div className="cdr-results-tools"><input className="search-input" placeholder="Search active calls" value={query} onChange={(event) => setQuery(event.target.value)} /><button className="btn btn-ghost btn-sm" onClick={refresh}><RefreshIcon />Refresh</button></div></div>
+    <div className="table-scroll"><table className="report-table"><thead><tr><th>Relationship</th><th>Trunk Group</th><th>Start</th><th>ANI</th><th>DNIS</th><th className="num">Duration</th></tr></thead><tbody>{filtered?.map((row, index) => <tr key={`${row.start}-${index}`}><td>{row.relationship}</td><td>{row.trunkGroup}</td><td>{formatUtc(row.start)}</td><td>{row.ani}</td><td>{row.dnis}</td><td className="num">{formatDuration(row.duration)}</td></tr>)}</tbody></table></div>
+    {rows === null ? <div className="chart-skeleton compact-skeleton" /> : filtered?.length === 0 && <EmptyState title="No live calls" description="Active calls will appear here automatically." />}
   </section>;
 }
 
 function CdrExportsPanel({ rows, query, setQuery }: { rows: CdrExportRow[] | null; query: string; setQuery: (value: string) => void }) {
   const filtered = rows?.filter((row) => Object.values(row).some((value) => String(value).toLowerCase().includes(query.toLowerCase())));
-  return <section className="panel table-panel diagnostic-results">
-    <div className="table-toolbar"><input className="search-input" placeholder="Search…" value={query} onChange={(event) => setQuery(event.target.value)} /></div>
+  return <section className="panel table-panel cdr-results-panel">
+    <div className="cdr-results-head"><div><h2>CDR exports</h2><p>Previously generated files scoped to this account</p></div><input className="search-input" placeholder="Search exports" value={query} onChange={(event) => setQuery(event.target.value)} /></div>
     <div className="table-scroll"><table className="report-table"><thead><tr><th>Export Name</th><th>Export Date</th><th>Status</th><th>Period</th><th>Export User</th></tr></thead><tbody>{filtered?.map((row) => <tr key={`${row.exportName}-${row.exportDate}`}><td>{row.exportName}</td><td>{formatUtc(row.exportDate)}</td><td><span className="tag tag-ok">{row.status}</span></td><td>{row.period}</td><td>{row.exportUser}</td></tr>)}</tbody></table></div>
     {rows === null ? <div className="chart-skeleton compact-skeleton" /> : filtered?.length === 0 && <EmptyState title="No CDR exports" description="Scoped export history will appear here when available." />}
   </section>;

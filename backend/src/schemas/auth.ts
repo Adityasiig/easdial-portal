@@ -25,6 +25,7 @@ export const metricsQuerySchema = z.object({
   relationshipId: z.string().optional(), // admins may preview a specific relationship
   startTime: z.string().datetime().optional(),
   endTime: z.string().datetime().optional(),
+  location: z.string().trim().max(80).optional(),
 });
 
 export const cdrQuerySchema = z.object({
@@ -32,8 +33,10 @@ export const cdrQuerySchema = z.object({
   startTime: z.string().datetime(),
   endTime: z.string().datetime(),
   location: z.string().trim().max(80).optional(),
-  trunkGroupId: z.string().trim().max(120).optional(),
-  trunkGroupLabel: z.string().trim().max(240).optional(),
+  customerTrunkGroupId: z.string().trim().max(120).optional(),
+  customerTrunkGroupLabel: z.string().trim().max(240).optional(),
+  vendorTrunkGroupId: z.string().trim().max(120).optional(),
+  vendorTrunkGroupLabel: z.string().trim().max(240).optional(),
   ani: z.string().trim().max(64).optional(),
   dnis: z.string().trim().max(64).optional(),
   releaseCode: z.string().trim().max(32).optional(),

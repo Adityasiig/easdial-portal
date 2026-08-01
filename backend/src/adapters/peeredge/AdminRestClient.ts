@@ -22,6 +22,7 @@ import { logger } from '../../lib/logger.js';
 import { AppError } from '../../lib/errors.js';
 import { PeeredgeSession } from './PeeredgeSession.js';
 import { relationshipStartsWithBrandPrefix } from './relationshipFilter.js';
+import { buildCdrColumns } from './cdrQuery.js';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -157,32 +158,36 @@ export class AdminRestClient implements SwitchDataClient {
     }));
   }
 
-  async getCdrFilters(relationshipId: string, direction: Direction): Promise<CdrFilterOptions> {
-    const [locations, trunkGroups] = await Promise.all([
+  async getCdrFilters(relationshipId: string, direction: Direction, location?: string): Promise<CdrFilterOptions> {
+    const [locations, customerTrunkGroups, vendorTrunkGroups] = await Promise.all([
       this.getLocations(),
-      this.getScopedTrunkGroups(relationshipId, direction),
+      this.getScopedTrunkGroups(relationshipId, direction, location),
+      this.getVendorTrunkGroups(direction, location),
     ]);
-    return { locations, trunkGroups };
+    return { locations, customerTrunkGroups, vendorTrunkGroups };
   }
 
   async getCdrs(relationshipId: string, query: CdrQuery): Promise<CdrRow[]> {
-    const scopedGroups = await this.getScopedTrunkGroups(relationshipId, query.direction);
-    const selectedGroups = query.trunkGroupId
-      ? scopedGroups.filter((group) => group.id === query.trunkGroupId)
-      : scopedGroups;
-    if (selectedGroups.length === 0) return [];
+    const [customerGroups, vendorGroups] = await Promise.all([
+      this.getScopedTrunkGroups(relationshipId, query.direction, query.location),
+      query.vendorTrunkGroupId ? this.getVendorTrunkGroups(query.direction, query.location) : Promise.resolve([]),
+    ]);
+    const selectedCustomers = query.customerTrunkGroupId
+      ? customerGroups.filter((group) => group.id === query.customerTrunkGroupId)
+      : customerGroups;
+    if (query.customerTrunkGroupId && selectedCustomers.length === 0) {
+      throw new AppError(400, 'invalid_customer_trunk', 'Customer trunk is not allocated to this portal account');
+    }
+    if (selectedCustomers.length === 0) return [];
+    const selectedVendor = query.vendorTrunkGroupId
+      ? vendorGroups.find((group) => group.id === query.vendorTrunkGroupId)
+      : undefined;
+    if (query.vendorTrunkGroupId && !selectedVendor) {
+      throw new AppError(400, 'invalid_vendor_trunk', 'Vendor trunk is not available for this traffic direction');
+    }
 
-    const typeColumns = query.direction === 'termination'
-      ? [{ name: 'orig_trunk_group_type', value: '1' }, { name: 'term_trunk_group_type', value: '2' }]
-      : [{ name: 'orig_trunk_group_type', value: '2' }, { name: 'term_trunk_group_type', value: '1' }];
-    const selectedColumn = query.direction === 'termination' ? 'orig_trunk_group_id' : 'term_trunk_group_id';
-    const payloads = await Promise.all(selectedGroups.map((group) => {
-      const columns = [{ name: selectedColumn, value: group.id }, ...typeColumns];
-      if (!query.includeBLeg) columns.push({ name: 'leg', value: 'A' });
-      if (query.ani) columns.push({ name: 'from_did', value: query.ani });
-      if (query.dnis) columns.push({ name: 'to_did', value: query.dnis });
-      if (query.releaseCode) columns.push({ name: 'sip_code', value: query.releaseCode });
-      if (query.callId) columns.push({ name: 'callid', value: query.callId });
+    const payloads = await Promise.all(selectedCustomers.map((group) => {
+      const columns = buildCdrColumns(query, group.id, selectedVendor?.id);
       return this.postJson<unknown>('/cdr_diagnostics/search', {
         call_type: query.status === 'completed' ? 'C' : query.status === 'failed' ? 'F' : 'A',
         start_time: query.startTime,
@@ -195,10 +200,12 @@ export class AdminRestClient implements SwitchDataClient {
       });
     }));
 
-    const relationshipOnOriginationSide = query.direction === 'termination';
+    const customerOnOriginationSide = query.direction === 'termination';
     const unique = new Map<string, CdrRow>();
     for (const payload of payloads) {
       for (const row of records(payload)) {
+        const customerTrunk = `${stringValue(customerOnOriginationSide ? row.orig_carrier_name : row.term_carrier_name)} / ${stringValue(customerOnOriginationSide ? row.orig_trunk_group_name : row.term_trunk_group_name)}`;
+        const vendorTrunk = `${stringValue(customerOnOriginationSide ? row.term_carrier_name : row.orig_carrier_name)} / ${stringValue(customerOnOriginationSide ? row.term_trunk_group_name : row.orig_trunk_group_name)}`;
         const mapped: CdrRow = {
           dateTime: this.toIso(row.call_transaction_time),
           ani: stringValue(row.from_did),
@@ -207,9 +214,11 @@ export class AdminRestClient implements SwitchDataClient {
           releaseCode: stringValue(row.sip_code),
           releaseCause: stringValue(row.reason ?? row.sip_reason),
           duration: numberValue(row.duration_real),
-          relationshipTrunk: `${stringValue(relationshipOnOriginationSide ? row.orig_carrier_name : row.term_carrier_name)} / ${stringValue(relationshipOnOriginationSide ? row.orig_trunk_group_name : row.term_trunk_group_name)}`,
+          customerTrunk,
+          vendorTrunk,
+          relationshipTrunk: customerTrunk,
           origJuris: stringValue(row.orig_juris),
-          rate: numberValue(relationshipOnOriginationSide ? row.orig_rate : row.term_rate),
+          rate: numberValue(customerOnOriginationSide ? row.orig_rate : row.term_rate),
         };
         const key = stringValue(row.cdr_uuid ?? row.callid) || `${mapped.dateTime}-${mapped.ani}-${mapped.dnis}`;
         unique.set(key, mapped);
@@ -346,12 +355,13 @@ export class AdminRestClient implements SwitchDataClient {
   private async getScopedTrunkGroups(
     relationshipId: string,
     direction: Direction,
+    location?: string,
   ): Promise<Array<{ id: string; label: string }>> {
     const carrier = await this.getCarrier(relationshipId);
     const carrierName = stringValue(carrier.carrier_name).trim();
     const prefix = `${carrierName} -`;
     const trunkGroupType = direction === 'termination' ? '0' : '1';
-    const locations = await this.getLocations();
+    const locations = location ? [location] : await this.getLocations();
     const payloads = await Promise.all((locations.length ? locations : ['']).map((location) => {
       const params = new URLSearchParams({ trunk_group_type: trunkGroupType, relationship_type: '1' });
       if (location) params.set('location', location);
@@ -365,6 +375,22 @@ export class AdminRestClient implements SwitchDataClient {
       id: group.id,
       label: group.composite.slice(prefix.length).trim() || group.composite,
     }])).values()].sort((a, b) => a.label.localeCompare(b.label));
+  }
+
+  private async getVendorTrunkGroups(direction: Direction, location?: string): Promise<Array<{ id: string; label: string }>> {
+    const trunkGroupType = direction === 'termination' ? '0' : '1';
+    const locations = location ? [location] : await this.getLocations();
+    const payloads = await Promise.all((locations.length ? locations : ['']).map((location) => {
+      const params = new URLSearchParams({ trunk_group_type: trunkGroupType, relationship_type: '0' });
+      if (location) params.set('location', location);
+      return this.getJson<unknown>(`/trunk_groups/by_type_and_location?${params}`);
+    }));
+    const groups = payloads.flatMap(records).map((row) => ({
+      id: stringValue(row.id ?? row.trunk_group_id),
+      label: stringValue(row.complete_name ?? row.carrier_name ?? row.trunk_group_name ?? row.name),
+    })).filter((group) => group.id && group.label);
+    return [...new Map(groups.map((group) => [group.id, group])).values()]
+      .sort((a, b) => a.label.localeCompare(b.label));
   }
 
   private toIso(value: unknown, shiftDays = 0): string {

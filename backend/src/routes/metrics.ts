@@ -16,13 +16,14 @@ export async function metricsRoutes(app: FastifyInstance, authService: AuthServi
     role: 'customer' | 'vendor';
     startTime?: string;
     endTime?: string;
+    location?: string;
   } {
     const q = metricsQuerySchema.parse(req.query);
     const account = req.account!;
     const relationshipId =
       account.relationshipId ?? (account.role === 'admin' ? q.relationshipId : undefined);
     if (!relationshipId) throw BadRequest('No relationship is allocated to this account', 'no_relationship');
-    return { relationshipId, direction: q.direction, metric: q.metric, role: q.role, startTime: q.startTime, endTime: q.endTime };
+    return { relationshipId, direction: q.direction, metric: q.metric, role: q.role, startTime: q.startTime, endTime: q.endTime, location: q.location };
   }
 
   // What relationship the logged-in user is bound to (for the header/label).
@@ -56,8 +57,8 @@ export async function metricsRoutes(app: FastifyInstance, authService: AuthServi
 
   // Call Diagnostic
   app.get('/metrics/cdr-filters', async (req) => {
-    const { relationshipId, direction } = scope(req);
-    return getSwitchClient().getCdrFilters(relationshipId, direction);
+    const { relationshipId, direction, location } = scope(req);
+    return getSwitchClient().getCdrFilters(relationshipId, direction, location);
   });
 
   app.get('/metrics/cdrs', async (req) => {

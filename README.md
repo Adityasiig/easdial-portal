@@ -7,7 +7,7 @@ An independent, EasDial-branded carrier reporting portal with a clean white-and-
 - Secure EasDial login and tenant-scoped access tokens.
 - Peeredge-style dashboard KPIs and functional minutes, attempts, ports, CPS, and profit graph tabs.
 - Relationship performance and numbering reports.
-- Termination/origination CDR diagnostics with a dual-month GMT calendar, full live filters, live calls, and scoped export history.
+- Termination/origination CDR diagnostics with a dual-month GMT calendar, independently validated customer/vendor trunk filters, advanced live filters, pagination, live calls, and scoped export history.
 - Rates, invoices, carrier transactions, and PayPal history.
 - Responsive white interface using the bundled Inter variable font.
 - Three data-source modes: `mock`, switch-admin `rest`, and verified single-carrier `relationship`.

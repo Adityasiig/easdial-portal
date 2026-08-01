@@ -40,7 +40,7 @@ export interface SwitchDataClient {
   getNumbering(relationshipId: string): Promise<NumberingRow[]>;
 
   /** Call Diagnostic CDR rows. */
-  getCdrFilters(relationshipId: string, direction: Direction): Promise<CdrFilterOptions>;
+  getCdrFilters(relationshipId: string, direction: Direction, location?: string): Promise<CdrFilterOptions>;
 
   /** Filtered Call Diagnostic CDR rows. */
   getCdrs(relationshipId: string, query: CdrQuery): Promise<CdrRow[]>;

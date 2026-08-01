@@ -100,24 +100,35 @@ test('admin-created customer is scoped, functional, and revocable', async () => 
       headers: customerHeaders,
     });
     assert.equal(filterResponse.statusCode, 200);
-    const cdrFilters = filterResponse.json<{ locations: string[]; trunkGroups: Array<{ id: string }> }>();
+    const cdrFilters = filterResponse.json<{
+      locations: string[];
+      customerTrunkGroups: Array<{ id: string }>;
+      vendorTrunkGroups: Array<{ id: string }>;
+    }>();
     assert.ok(cdrFilters.locations.length > 0);
-    assert.ok(cdrFilters.trunkGroups.length > 0);
+    assert.ok(cdrFilters.customerTrunkGroups.length > 0);
+    assert.ok(cdrFilters.vendorTrunkGroups.length > 0);
 
     const now = new Date();
     const start = new Date(now);
     start.setUTCHours(0, 0, 0, 0);
+    const end = new Date(now);
+    end.setUTCHours(23, 59, 59, 999);
     const query = new URLSearchParams({
       direction: 'termination',
       startTime: start.toISOString(),
-      endTime: now.toISOString(),
+      endTime: end.toISOString(),
       status: 'all',
       location: cdrFilters.locations[0],
-      trunkGroupId: cdrFilters.trunkGroups[0].id,
+      customerTrunkGroupId: cdrFilters.customerTrunkGroups[0].id,
+      vendorTrunkGroupId: cdrFilters.vendorTrunkGroups[0].id,
     });
     const cdrResponse = await app.inject({ method: 'GET', url: `/metrics/cdrs?${query}`, headers: customerHeaders });
     assert.equal(cdrResponse.statusCode, 200);
-    assert.ok(Array.isArray(cdrResponse.json()));
+    const cdrRows = cdrResponse.json<Array<{ customerTrunk: string; vendorTrunk: string }>>();
+    assert.ok(cdrRows.length > 0);
+    assert.match(cdrRows[0].customerTrunk, /USA SD$/);
+    assert.equal(cdrRows[0].vendorTrunk, 'Pathway Telco / USA Primary');
 
     const forbiddenAdminResponse = await app.inject({ method: 'GET', url: '/admin/users', headers: customerHeaders });
     assert.equal(forbiddenAdminResponse.statusCode, 403);

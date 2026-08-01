@@ -21,6 +21,7 @@ import type {
 import { AppError } from '../../lib/errors.js';
 import { logger } from '../../lib/logger.js';
 import { PeeredgeSession } from './PeeredgeSession.js';
+import { buildCdrColumns } from './cdrQuery.js';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -108,36 +109,23 @@ export class RelationshipRestClient implements SwitchDataClient {
     }));
   }
 
-  async getCdrFilters(_relationshipId: string, _direction: Direction): Promise<CdrFilterOptions> {
+  async getCdrFilters(_relationshipId: string, direction: Direction, _location?: string): Promise<CdrFilterOptions> {
     const carrierId = await this.getCarrierId();
-    const [locationPayload, trunkPayload] = await Promise.all([
+    const trunkGroupType = direction === 'termination' ? '0' : '1';
+    const [locationPayload, customerPayload, vendorPayload] = await Promise.all([
       this.getJson<unknown>('/locations/server_locations'),
-      this.getJson<unknown>(`/trunk_groups/complete_names?trunk_group_type=0&carrier_id=${encodeURIComponent(carrierId)}`),
+      this.getJson<unknown>(`/trunk_groups/complete_names?trunk_group_type=${trunkGroupType}&carrier_id=${encodeURIComponent(carrierId)}`),
+      this.getJson<unknown>(`/trunk_groups/complete_names?trunk_group_type=${trunkGroupType}&relationship_type=0`).catch(() => []),
     ]);
     return {
       locations: this.normalizeLocations(locationPayload),
-      trunkGroups: this.normalizeTrunkGroups(trunkPayload),
+      customerTrunkGroups: this.normalizeTrunkGroups(customerPayload),
+      vendorTrunkGroups: this.normalizeTrunkGroups(vendorPayload),
     };
   }
 
   async getCdrs(_relationshipId: string, query: CdrQuery): Promise<CdrRow[]> {
-    const typeColumns = query.direction === 'termination'
-      ? [{ name: 'orig_trunk_group_type', value: '1' }, { name: 'term_trunk_group_type', value: '2' }]
-      : [{ name: 'orig_trunk_group_type', value: '2' }, { name: 'term_trunk_group_type', value: '1' }];
-    const columns: Array<{ name: string; value: string }> = [...typeColumns];
-    let selectedColumn: 'orig_trunk_group_id' | 'term_trunk_group_id' | null = null;
-    if (query.trunkGroupId) {
-      const customerGroup = query.trunkGroupLabel?.toLowerCase().includes('customer') ?? false;
-      selectedColumn = query.direction === 'termination'
-        ? (customerGroup ? 'orig_trunk_group_id' : 'term_trunk_group_id')
-        : (customerGroup ? 'term_trunk_group_id' : 'orig_trunk_group_id');
-      columns.unshift({ name: selectedColumn, value: query.trunkGroupId });
-    }
-    if (query.ani) columns.push({ name: 'from_did', value: query.ani });
-    if (query.dnis) columns.push({ name: 'to_did', value: query.dnis });
-    if (query.releaseCode) columns.push({ name: 'sip_code', value: query.releaseCode });
-    if (query.callId) columns.push({ name: 'callid', value: query.callId });
-    if (!query.includeBLeg) columns.push({ name: 'leg', value: 'A' });
+    const columns = buildCdrColumns(query, query.customerTrunkGroupId, query.vendorTrunkGroupId);
 
     const payload = await this.postJson<unknown>('/cdr_diagnostics/search', {
       call_type: query.status === 'completed' ? 'C' : query.status === 'failed' ? 'F' : 'A',
@@ -149,15 +137,15 @@ export class RelationshipRestClient implements SwitchDataClient {
       location: query.location ?? 'dallas',
       columns,
     });
-    const useOriginationSide = selectedColumn
-      ? selectedColumn === 'orig_trunk_group_id'
-      : query.direction === 'termination';
+    const customerOnOriginationSide = query.direction === 'termination';
     const rows = responseRecords(payload).map((row) => ({
         dateTime: this.toIso(row.call_transaction_time), ani: stringValue(row.from_did), dnis: stringValue(row.to_did),
         lrn: stringValue(row.lrn_did), releaseCode: stringValue(row.sip_code), releaseCause: stringValue(row.reason ?? row.sip_reason),
         duration: numberValue(row.duration_real),
-        relationshipTrunk: `${stringValue(useOriginationSide ? row.orig_carrier_name : row.term_carrier_name)} / ${stringValue(useOriginationSide ? row.orig_trunk_group_name : row.term_trunk_group_name)}`,
-        origJuris: stringValue(row.orig_juris), rate: numberValue(useOriginationSide ? row.orig_rate : row.term_rate),
+        customerTrunk: `${stringValue(customerOnOriginationSide ? row.orig_carrier_name : row.term_carrier_name)} / ${stringValue(customerOnOriginationSide ? row.orig_trunk_group_name : row.term_trunk_group_name)}`,
+        vendorTrunk: `${stringValue(customerOnOriginationSide ? row.term_carrier_name : row.orig_carrier_name)} / ${stringValue(customerOnOriginationSide ? row.term_trunk_group_name : row.orig_trunk_group_name)}`,
+        relationshipTrunk: `${stringValue(customerOnOriginationSide ? row.orig_carrier_name : row.term_carrier_name)} / ${stringValue(customerOnOriginationSide ? row.orig_trunk_group_name : row.term_trunk_group_name)}`,
+        origJuris: stringValue(row.orig_juris), rate: numberValue(customerOnOriginationSide ? row.orig_rate : row.term_rate),
       }));
     const start = new Date(query.startTime).getTime();
     const end = new Date(query.endTime).getTime();

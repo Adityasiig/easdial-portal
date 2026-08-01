@@ -70,6 +70,8 @@ export interface CdrRow {
   releaseCode: string;
   releaseCause: string;
   duration: number;
+  customerTrunk: string;
+  vendorTrunk: string;
   relationshipTrunk: string;
   origJuris: string;
   rate: number;
@@ -82,8 +84,10 @@ export interface CdrQuery {
   startTime: string;
   endTime: string;
   location?: string;
-  trunkGroupId?: string;
-  trunkGroupLabel?: string;
+  customerTrunkGroupId?: string;
+  customerTrunkGroupLabel?: string;
+  vendorTrunkGroupId?: string;
+  vendorTrunkGroupLabel?: string;
   ani?: string;
   dnis?: string;
   releaseCode?: string;
@@ -96,7 +100,8 @@ export interface CdrQuery {
 
 export interface CdrFilterOptions {
   locations: string[];
-  trunkGroups: Array<{ id: string; label: string }>;
+  customerTrunkGroups: Array<{ id: string; label: string }>;
+  vendorTrunkGroups: Array<{ id: string; label: string }>;
 }
 
 export interface LiveCallRow {
@@ -228,7 +233,11 @@ export const api = {
     return request<RelPerformanceRow[]>(`/metrics/relationship-performance?${params}`);
   },
   numbering: () => request<NumberingRow[]>('/metrics/numbering'),
-  cdrFilters: (direction: Direction) => request<CdrFilterOptions>(`/metrics/cdr-filters?direction=${direction}`),
+  cdrFilters: (direction: Direction, location?: string) => {
+    const params = new URLSearchParams({ direction });
+    if (location) params.set('location', location);
+    return request<CdrFilterOptions>(`/metrics/cdr-filters?${params}`);
+  },
   cdrs: (query: CdrQuery) => {
     const params = new URLSearchParams();
     Object.entries(query).forEach(([key, value]) => {

@@ -71,7 +71,9 @@ export interface CdrRow {
   releaseCode: string;
   releaseCause: string;
   duration: number; // seconds
-  relationshipTrunk: string;
+  customerTrunk: string;
+  vendorTrunk: string;
+  relationshipTrunk: string; // compatibility alias for customerTrunk
   origJuris: string;
   rate: number;
 }
@@ -83,8 +85,10 @@ export interface CdrQuery {
   startTime: string;
   endTime: string;
   location?: string;
-  trunkGroupId?: string;
-  trunkGroupLabel?: string;
+  customerTrunkGroupId?: string;
+  customerTrunkGroupLabel?: string;
+  vendorTrunkGroupId?: string;
+  vendorTrunkGroupLabel?: string;
   ani?: string;
   dnis?: string;
   releaseCode?: string;
@@ -102,7 +106,8 @@ export interface CdrTrunkGroup {
 
 export interface CdrFilterOptions {
   locations: string[];
-  trunkGroups: CdrTrunkGroup[];
+  customerTrunkGroups: CdrTrunkGroup[];
+  vendorTrunkGroups: CdrTrunkGroup[];
 }
 
 /** Call Diagnostic → Live Calls row. */

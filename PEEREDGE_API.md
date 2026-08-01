@@ -26,7 +26,9 @@ EasDial should use switch-admin `rest` mode for multiple customer relationships.
 | GET | `/carrier_payments` | `carrier_id` |
 | GET | `/live_calls` | location plus carrier-name filtering |
 
-The verified CDR request includes `call_type`, `start_time`, `end_time`, `duration_min`, `duration_max`, `is_sanitize`, `location`, and scoped `columns`. EasDial supports ANI, DNIS, SIP release code, SIP call ID, duration range, A/B-leg selection, completion state, trunk group, and GMT date/time range.
+The verified CDR request includes `call_type`, `start_time`, `end_time`, `duration_min`, `duration_max`, `is_sanitize`, `location`, and scoped `columns`. EasDial supports ANI, DNIS, SIP release code, SIP call ID, duration range, A/B-leg selection, completion state, customer trunk, vendor trunk, and GMT date/time range.
+
+Customer and vendor trunk IDs are never inferred from display labels. For termination traffic, the allocated customer trunk maps to `orig_trunk_group_id` and the selected vendor trunk maps to `term_trunk_group_id`. For origination traffic, the mapping is reversed. The backend validates the selected customer trunk against the allocated carrier and the vendor trunk against the selected direction and location before querying CDRs.
 
 ## Authentication
 
