@@ -58,8 +58,8 @@ export function Shell({ title, children }: { title: string; children: ReactNode 
           </div>
           <div className="topbar-right">
             <div className="network-summary">
-              <span className="topstat"><span className="meter-ring" /><b>{activeCalls ?? '—'}</b> Calls</span>
-              <span className="topstat" title="CPS is not supplied by the configured upstream"><span className="meter-ring muted" /><b>—</b> CPS</span>
+              <span className="topstat"><span className="meter-ring" /><b>Active Calls:</b> {activeCalls ?? '—'}</span>
+              <span className="topstat" title="CPS is not supplied by the configured upstream"><span className="meter-ring muted" /><b>Active CPS:</b> —</span>
             </div>
             <span className="clock">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>

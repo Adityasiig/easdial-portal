@@ -37,7 +37,7 @@ const NAV: Array<{ section: string; items: Array<Item | Group> }> = [
     section: 'Operations',
     items: [
       {
-        label: 'Reporting', icon: IconReport,
+        label: 'Reportings', icon: IconReport,
         children: [
           { to: '/reportings/relationship', label: 'Relationship performance' },
           { to: '/reportings/numbering', label: 'Numbering' },

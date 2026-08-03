@@ -226,7 +226,7 @@ export function CallDiagnostic() {
   };
 
   return (
-    <Shell title="CDR Diagnostic">
+    <Shell title="Call Diagnostic">
       <div className="tabs page-tabs diagnostic-main-tabs" role="tablist" aria-label="CDR mode">
         {TOP_TABS.map((tab) => <button key={tab} role="tab" aria-selected={tab === top} className={`tab ${tab === top ? 'tab-active' : ''}`} onClick={() => setTop(tab)}>{tab}</button>)}
       </div>

@@ -17,10 +17,8 @@ const todayRange = () => {
 type TopTab = { key: string; direction: Direction };
 const TOP_TABS: TopTab[] = [
   { key: 'Termination', direction: 'termination' },
-  { key: 'Origination', direction: 'origination' },
-  { key: 'Termination Media', direction: 'termination' },
-  { key: 'Origination Media', direction: 'origination' },
   { key: 'Termination Capacity', direction: 'termination' },
+  { key: 'Origination', direction: 'origination' },
   { key: 'Origination Capacity', direction: 'origination' },
 ];
 
