@@ -94,6 +94,16 @@ test('admin-created customer is scoped, functional, and revocable', async () => 
     assert.equal(summaryResponse.statusCode, 200);
     assert.equal(typeof summaryResponse.json<{ dailyAttempts: number }>().dailyAttempts, 'number');
 
+    const headerStatsResponse = await app.inject({
+      method: 'GET',
+      url: '/metrics/header-stats',
+      headers: customerHeaders,
+    });
+    assert.equal(headerStatsResponse.statusCode, 200);
+    const headerStats = headerStatsResponse.json<{ activeCalls: number; activeCps: number }>();
+    assert.equal(typeof headerStats.activeCalls, 'number');
+    assert.equal(typeof headerStats.activeCps, 'number');
+
     const filterResponse = await app.inject({
       method: 'GET',
       url: '/metrics/cdr-filters?direction=termination',

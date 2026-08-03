@@ -34,24 +34,15 @@ export function Shell({ title, children }: { title: string; children: ReactNode 
   useEffect(() => {
     let active = true;
     const load = async () => {
-      const [callsResult, cpsResult] = await Promise.allSettled([
-        api.liveCalls(),
-        api.overview('termination', 'cps'),
-      ]);
-      if (!active) return;
-      setNetwork((current) => {
-        const calls = callsResult.status === 'fulfilled' ? callsResult.value.length : current.calls;
-        const cps = cpsResult.status === 'fulfilled'
-          ? Math.round(cpsResult.value.series.reduce((total, series) => {
-            const latest = series.points[series.points.length - 1];
-            return total + (latest?.value ?? 0);
-          }, 0))
-          : current.cps;
-        return { calls, cps };
-      });
+      try {
+        const stats = await api.headerStats();
+        if (active) setNetwork({ calls: stats.activeCalls, cps: stats.activeCps });
+      } catch {
+        // Keep the last confirmed counters during a temporary upstream failure.
+      }
     };
     void load();
-    const timer = window.setInterval(() => void load(), 15_000);
+    const timer = window.setInterval(() => void load(), 30_000);
     return () => { active = false; window.clearInterval(timer); };
   }, []);
 

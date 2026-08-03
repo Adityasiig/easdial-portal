@@ -5,6 +5,7 @@ import type {
   CdrRow,
   CdrExportRow,
   DashboardSummary,
+  HeaderStats,
   Direction,
   InvoiceRow,
   LiveCallRow,
@@ -91,6 +92,22 @@ export class AdminRestClient implements SwitchDataClient {
       dailyAttempts: numberValue(row.attempts),
       dailyAsr: numberValue(row.asr),
       dailyAloc: row.aloc == null && row.raw_aloc == null ? null : numberValue(row.aloc ?? row.raw_aloc),
+    };
+  }
+
+  async getHeaderStats(relationshipId: string): Promise<HeaderStats> {
+    // The admin route is switch-wide unless the carrier is supplied. Always
+    // send the allocated relationship so a customer never receives global
+    // switch counters.
+    const response = await this.getJson<JsonRecord>(
+      `/dashboard/cps_ports?carrier_id=${encodeURIComponent(relationshipId)}`,
+    );
+    const data = response.data && typeof response.data === 'object' && !Array.isArray(response.data)
+      ? response.data as JsonRecord
+      : response;
+    return {
+      activeCalls: numberValue(data.ports ?? data.att_ports),
+      activeCps: numberValue(data.cps ?? data.att_cps),
     };
   }
 

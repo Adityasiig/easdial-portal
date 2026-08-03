@@ -42,6 +42,12 @@ export interface MetricsQuery {
   metric?: DashboardMetric;
 }
 
+/** Live header counters returned by Peeredge's dedicated cps_ports route. */
+export interface HeaderStats {
+  activeCalls: number;
+  activeCps: number;
+}
+
 /** Reportings → Relationship Performance row. */
 export interface RelPerformanceRow {
   name: string;

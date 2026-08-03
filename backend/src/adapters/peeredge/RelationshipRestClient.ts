@@ -5,6 +5,7 @@ import type {
   CdrQuery,
   CdrRow,
   DashboardSummary,
+  HeaderStats,
   Direction,
   InvoiceRow,
   LiveCallRow,
@@ -71,6 +72,17 @@ export class RelationshipRestClient implements SwitchDataClient {
       dailyAttempts: numberValue(data.attempts),
       dailyAsr: numberValue(data.asr),
       dailyAloc: data.aloc == null ? null : numberValue(data.aloc),
+    };
+  }
+
+  async getHeaderStats(_relationshipId: string): Promise<HeaderStats> {
+    const response = await this.getJson<JsonRecord>('/dashboard/cps_ports');
+    const data = response.data && typeof response.data === 'object' && !Array.isArray(response.data)
+      ? response.data as JsonRecord
+      : response;
+    return {
+      activeCalls: numberValue(data.ports ?? data.att_ports),
+      activeCps: numberValue(data.cps ?? data.att_cps),
     };
   }
 

@@ -118,3 +118,31 @@ test('refreshes the Peeredge relationship directory after 180 seconds', async ()
     Date.now = originalNow;
   }
 });
+
+test('requests live header counters for only the allocated carrier', async () => {
+  process.env.JWT_SECRET ??= 'header-stats-test-secret-32-characters';
+  process.env.PEEREDGE_SOURCE ??= 'mock';
+  const { AdminRestClient } = await import('../src/adapters/peeredge/AdminRestClient.js');
+  const originalFetch = globalThis.fetch;
+  let requestedUrl = '';
+  globalThis.fetch = async (input) => {
+    requestedUrl = String(input);
+    return new Response(JSON.stringify({ att_ports: 12, att_cps: 7 }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  };
+
+  const session = {
+    requestHeaders: async () => ({}),
+    refresh: async () => undefined,
+  } as unknown as PeeredgeSession;
+
+  try {
+    const client = new AdminRestClient('https://api.example.test', session, 'ED');
+    assert.deepEqual(await client.getHeaderStats('509'), { activeCalls: 12, activeCps: 7 });
+    assert.match(requestedUrl, /\/dashboard\/cps_ports\?carrier_id=509$/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

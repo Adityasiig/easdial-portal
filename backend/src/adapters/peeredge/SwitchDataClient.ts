@@ -4,6 +4,7 @@ import type {
   CdrRow,
   CdrExportRow,
   DashboardSummary,
+  HeaderStats,
   Direction,
   InvoiceRow,
   LiveCallRow,
@@ -30,6 +31,9 @@ export interface SwitchDataClient {
 
   /** KPI tiles for one relationship. */
   getSummary(relationshipId: string): Promise<DashboardSummary>;
+
+  /** Live call and CPS counters for one relationship. */
+  getHeaderStats(relationshipId: string): Promise<HeaderStats>;
 
   /** Overview time-series for one relationship. */
   getOverview(relationshipId: string, query: MetricsQuery): Promise<OverviewSeries>;

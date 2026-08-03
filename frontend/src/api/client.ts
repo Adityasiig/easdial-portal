@@ -77,6 +77,11 @@ export interface CdrRow {
   rate: number;
 }
 
+export interface HeaderStats {
+  activeCalls: number;
+  activeCps: number;
+}
+
 export type CdrStatus = 'all' | 'completed' | 'failed';
 
 export interface CdrQuery {
@@ -240,6 +245,7 @@ export const api = {
 
   // metrics (scoped to the caller's allocated relationship)
   summary: () => request<DashboardSummary>('/metrics/summary'),
+  headerStats: () => request<HeaderStats>('/metrics/header-stats'),
   overview: (direction: Direction, metric: DashboardMetric) =>
     request<OverviewSeries>(`/metrics/overview?direction=${direction}&metric=${metric}`),
   relPerformance: (direction: Direction, role: PartyRole, startTime?: string, endTime?: string) => {

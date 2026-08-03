@@ -64,6 +64,11 @@ export async function metricsRoutes(app: FastifyInstance, authService: AuthServi
     return { ...filters, vendorTrunkGroups: [] };
   });
 
+  app.get('/metrics/header-stats', async (req) => {
+    const { relationshipId } = scope(req);
+    return getSwitchClient().getHeaderStats(relationshipId);
+  });
+
   app.get('/metrics/cdrs', async (req) => {
     const { relationshipId } = scope(req);
     const query = cdrQuerySchema.parse(req.query);

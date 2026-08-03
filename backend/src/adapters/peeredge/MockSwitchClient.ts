@@ -5,6 +5,7 @@ import type {
   CdrRow,
   CdrExportRow,
   DashboardSummary,
+  HeaderStats,
   Direction,
   InvoiceRow,
   LiveCallRow,
@@ -124,6 +125,11 @@ export class MockSwitchClient implements SwitchDataClient {
         { id: 'vendor-backup', label: 'Aertel Ltd / USA Backup' },
       ],
     };
+  }
+
+  async getHeaderStats(relationshipId: string): Promise<HeaderStats> {
+    const seed = this.seedFor(`${relationshipId}-header-stats`);
+    return { activeCalls: seed % 24, activeCps: seed % 18 };
   }
 
   async getCdrs(relationshipId: string, query: CdrQuery): Promise<CdrRow[]> {
