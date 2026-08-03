@@ -131,6 +131,7 @@ export interface CdrExportRow {
 
 /** Accounting → View Rates row. */
 export interface RateRow {
+  id: string;
   name: string;
   trunkGroups: number;
   direction: string;
@@ -140,6 +141,12 @@ export interface RateRow {
   totalRates: number;
   expirationDate: string | null;
   modified: string;
+}
+
+export interface RateDeckDownload {
+  filename: string;
+  contentType: string;
+  bytes: Uint8Array;
 }
 
 /** Accounting → Invoices row. */

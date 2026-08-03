@@ -12,6 +12,7 @@ import type {
   OverviewSeries,
   PartyRole,
   PaymentRow,
+  RateDeckDownload,
   RateRow,
   RelationshipRef,
   RelPerformanceRow,
@@ -53,6 +54,9 @@ export interface SwitchDataClient {
 
   /** Accounting → View Rates rows. */
   getRates(relationshipId: string): Promise<RateRow[]>;
+
+  /** Download one full rate deck after relationship ownership is verified. */
+  downloadRateDeck(relationshipId: string, rateSheetId: string): Promise<RateDeckDownload>;
 
   /** Accounting → Invoices rows. */
   getInvoices(relationshipId: string): Promise<InvoiceRow[]>;

@@ -13,6 +13,7 @@ import type {
   OverviewSeries,
   PartyRole,
   PaymentRow,
+  RateDeckDownload,
   RateRow,
   RelationshipRef,
   RelPerformanceRow,
@@ -24,6 +25,7 @@ import { PeeredgeSession } from './PeeredgeSession.js';
 import { relationshipStartsWithBrandPrefix } from './relationshipFilter.js';
 import { buildCdrColumns } from './cdrQuery.js';
 import { scopedTrunkGroups } from './trunkGroupFilter.js';
+import { fetchRateDeckFile } from './rateDeckDownload.js';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -261,6 +263,7 @@ export class AdminRestClient implements SwitchDataClient {
   async getRates(relationshipId: string): Promise<RateRow[]> {
     const payload = await this.getJson<unknown>(`/rate_sheets?carrier_id=${encodeURIComponent(relationshipId)}`);
     return records(payload).map((row) => ({
+      id: stringValue(row.id ?? row.rate_sheet_id),
       name: stringValue(row.name),
       trunkGroups: Array.isArray(row.trunk_groups) ? row.trunk_groups.length : numberValue(row.trunk_groups),
       direction: stringValue(row.direction),
@@ -271,6 +274,18 @@ export class AdminRestClient implements SwitchDataClient {
       expirationDate: row.expiration_date ? stringValue(row.expiration_date) : null,
       modified: stringValue(row.updated_at ?? row.created_at),
     }));
+  }
+
+  async downloadRateDeck(relationshipId: string, rateSheetId: string): Promise<RateDeckDownload> {
+    const rate = (await this.getRates(relationshipId)).find((row) => row.id === rateSheetId);
+    if (!rate) throw new AppError(404, 'rate_deck_not_found', 'Rate deck not found for this relationship');
+    const payload = await this.getJson<{ url?: unknown; data?: { url?: unknown } }>(`/rate_sheets/download_rates?rate_sheet_id=${encodeURIComponent(rateSheetId)}`);
+    const rawUrl = stringValue(payload.url ?? payload.data?.url);
+    if (!rawUrl) throw new AppError(502, 'peeredge_rate_download', 'Peeredge returned no rate download URL');
+    const url = new URL(rawUrl, this.base).toString();
+    const sameOrigin = new URL(url).origin === new URL(this.base).origin;
+    const headers = sameOrigin ? await this.session.requestHeaders() : {};
+    return fetchRateDeckFile(url, `${rate.name}.csv`, headers);
   }
 
   async getInvoices(relationshipId: string): Promise<InvoiceRow[]> {

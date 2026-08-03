@@ -14,6 +14,7 @@ import type {
   OverviewSeries,
   PartyRole,
   PaymentRow,
+  RateDeckDownload,
   RateRow,
   RelationshipRef,
   RelPerformanceRow,
@@ -205,10 +206,11 @@ export class MockSwitchClient implements SwitchDataClient {
     const seed = this.seedFor(relationshipId + 'rates');
     return [
       {
+        id: `${relationshipId}-sd`,
         name: `${base} USA SD`,
         trunkGroups: 2,
         direction: 'Termination',
-        relationship: 'Vendor',
+        relationship: 'Customer',
         location: 'US & Canada',
         type: 'Prefix Jurisdiction (NPANXX)',
         totalRates: 150_000 + (seed % 60_000),
@@ -216,10 +218,11 @@ export class MockSwitchClient implements SwitchDataClient {
         modified: this.recentDate(seed % 90),
       },
       {
+        id: `${relationshipId}-flat`,
         name: `${base} USA Flat`,
         trunkGroups: 0,
         direction: 'Termination',
-        relationship: 'Vendor',
+        relationship: 'Customer',
         location: 'US & Canada',
         type: 'Prefix Jurisdiction (NPANXX)',
         totalRates: 140_000 + (seed % 50_000),
@@ -227,6 +230,22 @@ export class MockSwitchClient implements SwitchDataClient {
         modified: this.recentDate((seed % 90) + 60),
       },
     ];
+  }
+
+  async downloadRateDeck(relationshipId: string, rateSheetId: string): Promise<RateDeckDownload> {
+    const rate = (await this.getRates(relationshipId)).find((row) => row.id === rateSheetId);
+    if (!rate) throw new Error('rate_deck_not_found');
+    const csv = [
+      ['Prefix', 'Interstate Rate', 'Intrastate Rate', 'Indeterminate Rate', 'Effective Date'],
+      ['1201', '0.00420', '0.00480', '0.00450', '2026-08-01'],
+      ['1202', '0.00410', '0.00470', '0.00440', '2026-08-01'],
+      ['1203', '0.00430', '0.00490', '0.00460', '2026-08-01'],
+    ].map((row) => row.map((value) => `"${value}"`).join(',')).join('\r\n');
+    return {
+      filename: `${rate.name.replace(/[^a-z0-9_-]+/gi, '-')}.csv`,
+      contentType: 'text/csv; charset=utf-8',
+      bytes: new TextEncoder().encode(`\uFEFF${csv}`),
+    };
   }
 
   async getInvoices(relationshipId: string): Promise<InvoiceRow[]> {

@@ -11,6 +11,7 @@ export function ViewRates() {
   const [rows, setRows] = useState<RateRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState('');
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   useEffect(() => {
     api.rates().then(setRows).catch((e) => setError(e.message));
@@ -20,30 +21,24 @@ export function ViewRates() {
   const scoped = tab === 'Standard' ? rows : rows === null ? null : [];
   const filtered = scoped?.filter((r) => !q || r.name.toLowerCase().includes(q.toLowerCase()));
 
-  const downloadCsv = () => {
-    if (!filtered?.length) return;
-    const headers = ['Name', 'Trunk Groups', 'Direction', 'Relationship', 'Location', 'Type', 'Total Rates', 'Expiration Date', 'Modified'];
-    const records = filtered.map((rate) => [
-      rate.name,
-      rate.trunkGroups,
-      rate.direction,
-      rate.relationship,
-      rate.location,
-      rate.type,
-      rate.totalRates,
-      rate.expirationDate ?? '',
-      rate.modified,
-    ]);
-    const escapeCell = (value: string | number) => `"${String(value).replaceAll('"', '""')}"`;
-    const csv = [headers, ...records].map((record) => record.map(escapeCell).join(',')).join('\r\n');
-    const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `easedial-rates-${tab.toLowerCase()}-${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
+  const downloadRateDeck = async (rate: RateRow) => {
+    setDownloadingId(rate.id);
+    setError(null);
+    try {
+      const { blob, filename } = await api.rateDeck(rate.id);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Rate deck download failed');
+    } finally {
+      setDownloadingId(null);
+    }
   };
 
   return (
@@ -67,10 +62,6 @@ export function ViewRates() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
-          <button className="btn btn-primary btn-sm" type="button" onClick={downloadCsv} disabled={!filtered?.length}>
-            <DownloadIcon />
-            Download CSV
-          </button>
         </div>
         <div style={{ overflowX: 'auto' }}>
           <table className="report-table">
@@ -85,11 +76,12 @@ export function ViewRates() {
                 <th className="num">Total Rates</th>
                 <th>Expiration Date</th>
                 <th>Modified</th>
+                <th>Rates</th>
               </tr>
             </thead>
             <tbody>
               {filtered?.map((r) => (
-                <tr key={r.name}>
+                <tr key={r.id}>
                   <td>{r.name}</td>
                   <td className="num">
                     <span className="badge">{r.trunkGroups}</span>
@@ -101,6 +93,18 @@ export function ViewRates() {
                   <td className="num">{r.totalRates.toLocaleString()}</td>
                   <td>{r.expirationDate ?? '-'}</td>
                   <td>{r.modified.replace(/-/g, '/')}</td>
+                  <td>
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      type="button"
+                      onClick={() => void downloadRateDeck(r)}
+                      disabled={downloadingId !== null}
+                      aria-label={`Download ${r.name} rates as CSV`}
+                    >
+                      <DownloadIcon />
+                      {downloadingId === r.id ? 'Downloading...' : 'Download CSV'}
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

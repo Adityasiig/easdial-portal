@@ -122,6 +122,7 @@ export interface CdrExportRow {
 }
 
 export interface RateRow {
+  id: string;
   name: string;
   trunkGroups: number;
   direction: string;
@@ -212,6 +213,33 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return body as T;
 }
 
+async function download(path: string): Promise<{ blob: Blob; filename: string }> {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    headers: authToken ? { authorization: `Bearer ${authToken}` } : {},
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    if (res.status === 401) setToken(null);
+    const err = body?.error ?? {};
+    throw new ApiError(res.status, err.code ?? 'error', err.message ?? 'Download failed');
+  }
+
+  const disposition = res.headers.get('content-disposition') ?? '';
+  const encodedName = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+  const quotedName = disposition.match(/filename="([^"]+)"/i)?.[1];
+  let filename = quotedName ?? 'rates.csv';
+  if (encodedName) {
+    try {
+      filename = decodeURIComponent(encodedName);
+    } catch {
+      filename = encodedName;
+    }
+  }
+
+  return { blob: await res.blob(), filename };
+}
+
 export const api = {
   upstreamHealth: () => request<UpstreamHealth>('/health/upstream'),
   login: (email: string, password: string) =>
@@ -248,6 +276,8 @@ export const api = {
   liveCalls: () => request<LiveCallRow[]>('/metrics/live-calls'),
   cdrExports: () => request<CdrExportRow[]>('/metrics/cdr-exports'),
   rates: () => request<RateRow[]>('/metrics/rates'),
+  rateDeck: (rateSheetId: string) =>
+    download(`/metrics/rates/${encodeURIComponent(rateSheetId)}/download`),
   invoices: () => request<InvoiceRow[]>('/metrics/invoices'),
   transactions: () => request<TransactionRow[]>('/metrics/transactions'),
   payments: () => request<PaymentRow[]>('/metrics/payments'),

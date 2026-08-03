@@ -3,10 +3,12 @@ import { cdrQuerySchema, metricsQuerySchema } from '../schemas/auth.js';
 import type { AuthService } from '../services/authService.js';
 import { requireAuth } from '../middleware/auth.js';
 import { getSwitchClient } from '../adapters/peeredge/index.js';
-import { BadRequest } from '../lib/errors.js';
+import { BadRequest, NotFound } from '../lib/errors.js';
 
 export async function metricsRoutes(app: FastifyInstance, authService: AuthService): Promise<void> {
   app.addHook('preHandler', requireAuth(authService));
+
+  const isCustomerRate = (relationship: string): boolean => ['customer', '1'].includes(relationship.trim().toLowerCase());
 
   /** The relationship this request may read: the user's own, or (for an admin) a previewed one. */
   function scope(req: FastifyRequest): {
@@ -89,7 +91,23 @@ export async function metricsRoutes(app: FastifyInstance, authService: AuthServi
   // Accounting
   app.get('/metrics/rates', async (req) => {
     const { relationshipId } = scope(req);
-    return getSwitchClient().getRates(relationshipId);
+    const rates = await getSwitchClient().getRates(relationshipId);
+    return rates.filter((rate) => isCustomerRate(rate.relationship));
+  });
+
+  app.get('/metrics/rates/:rateSheetId/download', async (req, reply) => {
+    const { relationshipId } = scope(req);
+    const { rateSheetId } = req.params as { rateSheetId: string };
+    const rates = (await getSwitchClient().getRates(relationshipId))
+      .filter((rate) => isCustomerRate(rate.relationship));
+    if (!rates.some((rate) => rate.id === rateSheetId)) {
+      throw NotFound('Rate deck not found for this customer', 'rate_deck_not_found');
+    }
+    const download = await getSwitchClient().downloadRateDeck(relationshipId, rateSheetId);
+    reply.header('Content-Type', download.contentType);
+    reply.header('Content-Disposition', `attachment; filename="${download.filename}"`);
+    reply.header('Cache-Control', 'private, no-store');
+    return reply.send(Buffer.from(download.bytes));
   });
 
   app.get('/metrics/invoices', async (req) => {
