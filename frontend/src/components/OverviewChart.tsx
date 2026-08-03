@@ -31,7 +31,7 @@ export function OverviewChart({ data }: { data: OverviewSeries }) {
   const rows = toRows(data);
   const tickInterval = Math.max(0, Math.floor(rows.length / 8) - 1);
   return (
-    <div style={{ width: '100%', height: 340 }} aria-label="Traffic overview chart">
+    <div className="overview-chart" style={{ width: '100%', height: 350 }} aria-label="Traffic overview chart">
       <ResponsiveContainer>
         <LineChart data={rows} margin={{ top: 18, right: 18, left: 0, bottom: 2 }}>
           <CartesianGrid strokeDasharray="2 5" stroke="#e8ecf2" vertical={false} />

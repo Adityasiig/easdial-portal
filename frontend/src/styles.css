@@ -1815,3 +1815,237 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .app-shell { --type-page: 20px; }
   .app-shell .topbar h1 { font-size: var(--type-page); }
 }
+
+/* Peeredge customer workspace reference
+   Recreated from the supplied saved portal while retaining EaseDial React/API behavior. */
+.app-shell {
+  grid-template-columns: 200px minmax(0, 1fr);
+  color: #171c26;
+  background: #f7f9fc;
+  font-family: 'Inter Variable', Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.app-shell .sidebar {
+  width: 200px;
+  padding: 0 10px;
+  border-right: 1px solid #e9edf5;
+  background: #fff;
+  box-shadow: 8px 0 8px rgba(0, 0, 0, .02);
+}
+.app-shell .sidebar-brand {
+  min-height: 40px;
+  margin: 10px 0 23px;
+  padding-left: 10px;
+}
+.app-shell .sidebar-logo { width: 150px; }
+.app-shell .nav-section { margin-bottom: 14px; }
+.app-shell .nav-section-label { display: none; }
+.app-shell .nav-item,
+.app-shell .nav-parent {
+  min-height: 40px;
+  margin: 2px 0;
+  padding: 0 14px;
+  color: #171c26;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  letter-spacing: .02em;
+}
+.app-shell .nav-item:hover,
+.app-shell .nav-parent:hover { color: #171c26; background: #e0ebff; }
+.app-shell .nav-item.active,
+.app-shell .nav-parent.parent-active {
+  color: #2264e6;
+  background: #f7f9fc;
+  box-shadow: none;
+  font-weight: 700;
+}
+.app-shell .nav-children {
+  margin: 4px 0 6px 28px;
+  padding: 2px 0 2px 16px;
+  border-left: 1px solid #e9edf5;
+}
+.app-shell .nav-child {
+  padding: 7px 3px;
+  color: #464f60;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+  letter-spacing: .01em;
+}
+.app-shell .nav-child.active { color: #2264e6; font-weight: 600; }
+.app-shell .content-col { grid-column: 2; background: #f7f9fc; }
+.app-shell .topbar {
+  min-height: 56px;
+  height: 56px;
+  padding: 0 20px;
+  border-bottom: 1.5px solid #e9edf5;
+  background: #fff;
+}
+.app-shell .topbar h1 {
+  color: #171c26;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 32px;
+  letter-spacing: 0;
+  text-transform: capitalize;
+}
+.app-shell .topbar-right { gap: 0; color: #464f60; font-size: 12px; }
+.app-shell .network-summary {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0;
+  border: 0;
+}
+.app-shell .topstat,
+.app-shell .clock {
+  position: relative;
+  min-height: 16px;
+  gap: 4px;
+  padding: 0 13px;
+  color: #464f60;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+}
+.app-shell .topstat::after,
+.app-shell .clock::after {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 1px;
+  height: 16px;
+  background: #e9edf5;
+  content: '';
+}
+.app-shell .topstat b { color: #464f60; font-weight: 500; }
+.app-shell .avatar-wrap { padding-left: 20px; }
+.app-shell .avatar {
+  width: 34px;
+  height: 34px;
+  color: #fff;
+  background: #bfc3ca;
+  font-size: 12px;
+  font-weight: 500;
+}
+.app-shell .content { max-width: none; padding: 20px; background: #f7f9fc; }
+.app-shell .page-footer {
+  padding: 10px 20px;
+  color: #868fa0;
+  border-top: 1px solid #e9edf5;
+  background: #f7f9fc;
+  font-size: 10px;
+}
+
+.app-shell .panel,
+.app-shell .diagnostic-filter-panel,
+.app-shell .dashboard-kpis {
+  border: 0;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 0 0 .5px rgba(152, 161, 178, .1), 0 2px 8px rgba(69, 75, 87, .12), 0 0 2px rgba(0, 0, 0, .08);
+}
+.app-shell .panel { padding: 16px 20px; }
+.app-shell .panel + .panel { margin-top: 20px; }
+.app-shell .dashboard-golden-layout { gap: 20px; }
+.app-shell .dashboard-kpis {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  min-height: 76px;
+}
+.app-shell .dashboard-kpi {
+  min-height: 76px;
+  gap: 4px;
+  padding: 16px 12px;
+  border: 0 !important;
+  border-radius: 0;
+  background: #fff !important;
+  box-shadow: none;
+}
+.app-shell .dashboard-kpi:first-of-type { padding-left: 20px; }
+.app-shell .dashboard-kpi + .dashboard-kpi { border-left: 1px solid #e9edf5 !important; }
+.app-shell .dashboard-kpi span {
+  color: #687182;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+  letter-spacing: .03em;
+}
+.app-shell .dashboard-kpi strong {
+  color: #171c26;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 20px;
+  letter-spacing: .02em;
+}
+.app-shell .peeredge-chart-panel {
+  padding: 0 0 20px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.app-shell .peeredge-overview-head { min-height: 64px; padding: 0 20px; }
+.app-shell .peeredge-overview-head h2 {
+  color: #171c26;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+  letter-spacing: 0;
+}
+.app-shell .overview-period {
+  height: 32px;
+  color: #2264e5;
+  border: 0;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 400;
+}
+.app-shell .peeredge-chart-tabs {
+  margin: 0;
+  padding: 0 20px;
+  gap: 8px;
+  border-bottom: 1px solid #e9edf5;
+}
+.app-shell .peeredge-chart-tabs .tab {
+  padding: 14px 0 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.app-shell .overview-chart {
+  padding: 0 10px;
+  background: #f7f9fc;
+}
+.app-shell .legend { padding: 0 20px; }
+
+.app-shell .table-panel,
+.app-shell .cdr-query-panel,
+.app-shell .cdr-results-panel,
+.app-shell .performance-filter-row {
+  border: 0;
+  background: #fff;
+  box-shadow: 0 0 0 .5px rgba(152, 161, 178, .1), 0 2px 8px rgba(69, 75, 87, .12), 0 0 2px rgba(0, 0, 0, .08);
+}
+.app-shell .table-panel { padding: 16px 20px 10px; }
+.app-shell .report-table { color: #171c26; font-size: 12px; }
+.app-shell .report-table thead th {
+  color: #464f60;
+  background: #f7f9fc;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .04em;
+}
+.app-shell .report-table th,
+.app-shell .report-table td { border-bottom-color: #e9edf5; }
+
+@media (max-width: 900px) {
+  .app-shell { grid-template-columns: 1fr; }
+  .app-shell .content-col { grid-column: 1; }
+  .app-shell .sidebar { width: min(220px, 86vw); }
+}
+
+@media (max-width: 700px) {
+  .app-shell .network-summary { display: none; }
+  .app-shell .topbar h1 { font-size: 21px; line-height: 28px; }
+  .app-shell .content { padding: 14px 10px; }
+}

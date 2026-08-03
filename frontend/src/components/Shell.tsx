@@ -22,12 +22,37 @@ export function Shell({ title, children }: { title: string; children: ReactNode 
   const [menuOpen, setMenuOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const [upstream, setUpstream] = useState<UpstreamHealth | null>(null);
+  const [network, setNetwork] = useState<{ calls: number | null; cps: number | null }>({ calls: null, cps: null });
   const initial = (user?.email?.[0] ?? 'E').toUpperCase();
 
   useEffect(() => {
     let active = true;
     void api.upstreamHealth().then((health) => active && setUpstream(health)).catch(() => undefined);
     return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      const [callsResult, cpsResult] = await Promise.allSettled([
+        api.liveCalls(),
+        api.overview('termination', 'cps'),
+      ]);
+      if (!active) return;
+      setNetwork((current) => {
+        const calls = callsResult.status === 'fulfilled' ? callsResult.value.length : current.calls;
+        const cps = cpsResult.status === 'fulfilled'
+          ? Math.round(cpsResult.value.series.reduce((total, series) => {
+            const latest = series.points[series.points.length - 1];
+            return total + (latest?.value ?? 0);
+          }, 0))
+          : current.cps;
+        return { calls, cps };
+      });
+    };
+    void load();
+    const timer = window.setInterval(() => void load(), 15_000);
+    return () => { active = false; window.clearInterval(timer); };
   }, []);
 
   return (
@@ -48,6 +73,10 @@ export function Shell({ title, children }: { title: string; children: ReactNode 
             </div>
           </div>
           <div className="topbar-right">
+            <div className="network-summary" aria-label="Live network activity" aria-live="polite">
+              <span className="topstat"><span>Active Calls:</span><b>{network.calls ?? '—'}</b></span>
+              <span className="topstat"><span>Active CPS:</span><b>{network.cps ?? '—'}</b></span>
+            </div>
             <span className="clock">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
                 <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
