@@ -1250,7 +1250,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 
 /* EaseDial supplied identity */
-.easedial-logo { display: block; width: 170px; height: auto; overflow: visible; }
+.easedial-logo { display: block; width: 170px; height: auto; object-fit: contain; }
+.easedial-logo-on-dark { border-radius: 6px; }
 .sidebar-logo { width: 156px; }
 .auth-logo { width: 188px; }
 .admin-brand-logo { width: 148px; flex: 0 0 auto; }
