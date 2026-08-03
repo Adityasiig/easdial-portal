@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { api, ApiError, type RelationshipRef, type SessionUser, type UpstreamHealth } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
-import { brand } from '../theme/brand';
+import { BrandLogo } from '../components/BrandLogo';
 
 const errorMessage = (error: unknown, fallback: string) =>
   error instanceof ApiError ? error.message : error instanceof Error ? error.message : fallback;
@@ -124,9 +124,8 @@ export function AdminPortal() {
     <div className="admin-shell">
       <header className="admin-topbar">
         <div className="admin-brand-lockup">
-          <span className="admin-brand-icon" aria-hidden="true"><i /><i /></span>
+          <BrandLogo className="admin-brand-logo" />
           <div>
-            <div className="admin-brand-name">{brand.name}</div>
             <div className="admin-brand-sub">Administration console</div>
           </div>
         </div>

@@ -1,4 +1,4 @@
-# EasDial Carrier Portal — Architecture
+# EaseDial Carrier Portal — Architecture
 
 ## Context
 
@@ -7,7 +7,7 @@
 **46 Labs' PeerEdge** platform. 46 Labs is the vendor and controls the `peeredge.com`
 domain and application. We cannot create `carrier-easdial.peeredge.com` ourselves.
 
-**Decision:** build an independent, self-hosted EasDial portal on our own domain
+**Decision:** build an independent, self-hosted EaseDial portal on our own domain
 (`carrier.easdial.com`) that consumes the same metrics through the **PeerEdge REST API
 (OAS v3)** — the officially supported, contract-safe data path. We never scrape the portal
 or reuse carrier login credentials.
@@ -20,12 +20,12 @@ flowchart LR
         API["PeerEdge REST API (OAS v3)"]
         SFTP["CDR drops (SFTP) — optional"]
     end
-    subgraph EasDial["Our infra — carrier.easdial.com"]
+    subgraph EaseDial["Our infra — carrier.easdial.com"]
         Adapter["PeeredgeClient adapter<br/>(mock | rest)"]
         Ingest["Ingestion worker (Phase 2)"]
         DB[("Postgres / TimescaleDB")]
         Backend["Backend API (Fastify)<br/>auth + tenant-scoped metrics"]
-        UI["React dashboard (EasDial brand)"]
+        UI["React dashboard (EaseDial brand)"]
         Mail["Transactional email"]
     end
     Carrier["Carrier user"]

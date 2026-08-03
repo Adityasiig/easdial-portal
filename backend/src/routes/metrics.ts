@@ -58,13 +58,22 @@ export async function metricsRoutes(app: FastifyInstance, authService: AuthServi
   // Call Diagnostic
   app.get('/metrics/cdr-filters', async (req) => {
     const { relationshipId, direction, location } = scope(req);
-    return getSwitchClient().getCdrFilters(relationshipId, direction, location);
+    const filters = await getSwitchClient().getCdrFilters(relationshipId, direction, location);
+    // Vendor routing is commercially sensitive. The customer-facing CDR API
+    // only exposes trunk groups allocated to the signed-in relationship.
+    return { ...filters, vendorTrunkGroups: [] };
   });
 
   app.get('/metrics/cdrs', async (req) => {
     const { relationshipId } = scope(req);
     const query = cdrQuerySchema.parse(req.query);
-    return getSwitchClient().getCdrs(relationshipId, query);
+    const customerSafeQuery = {
+      ...query,
+      vendorTrunkGroupId: undefined,
+      vendorTrunkGroupLabel: undefined,
+    };
+    const rows = await getSwitchClient().getCdrs(relationshipId, customerSafeQuery);
+    return rows.map((row) => ({ ...row, vendorTrunk: '' }));
   });
 
   app.get('/metrics/live-calls', async (req) => {

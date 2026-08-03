@@ -54,7 +54,6 @@ export function CallDiagnostic() {
   const [filterBusy, setFilterBusy] = useState(false);
   const [location, setLocation] = useState('');
   const [customerTrunkGroupId, setCustomerTrunkGroupId] = useState('');
-  const [vendorTrunkGroupId, setVendorTrunkGroupId] = useState('');
   const [ani, setAni] = useState('');
   const [dnis, setDnis] = useState('');
   const [releaseCode, setReleaseCode] = useState('');
@@ -87,7 +86,6 @@ export function CallDiagnostic() {
       setFilters({ ...scoped, locations: options.locations });
       setLocation(nextLocation);
       setCustomerTrunkGroupId('');
-      setVendorTrunkGroupId('');
     }).catch((err) => active && setError(err.message));
     return () => { active = false; };
   }, [direction, isCdrTab]);
@@ -95,7 +93,6 @@ export function CallDiagnostic() {
   const changeLocation = async (nextLocation: string) => {
     setLocation(nextLocation);
     setCustomerTrunkGroupId('');
-    setVendorTrunkGroupId('');
     setFilterBusy(true);
     try {
       const scoped = await api.cdrFilters(direction, nextLocation);
@@ -148,7 +145,6 @@ export function CallDiagnostic() {
       return;
     }
     const customer = filters?.customerTrunkGroups.find((group) => group.id === customerTrunkGroupId);
-    const vendor = filters?.vendorTrunkGroups.find((group) => group.id === vendorTrunkGroupId);
     setRows(null);
     setGenerated(true);
     setBusy(true);
@@ -161,8 +157,6 @@ export function CallDiagnostic() {
         location: location || undefined,
         customerTrunkGroupId: customerTrunkGroupId || undefined,
         customerTrunkGroupLabel: customer?.label,
-        vendorTrunkGroupId: vendorTrunkGroupId || undefined,
-        vendorTrunkGroupLabel: vendor?.label,
         ani: ani.trim() || undefined,
         dnis: dnis.trim() || undefined,
         releaseCode: releaseCode.trim() || undefined,
@@ -193,7 +187,6 @@ export function CallDiagnostic() {
     setEndTime(bounds.end);
     setLocation(filters?.locations[0] ?? '');
     setCustomerTrunkGroupId('');
-    setVendorTrunkGroupId('');
     setAni('');
     setDnis('');
     setReleaseCode('');
@@ -211,7 +204,7 @@ export function CallDiagnostic() {
 
   const filtered = useMemo(() => rows?.filter((row) => {
     const term = q.trim().toLowerCase();
-    return !term || [row.ani, row.dnis, row.lrn, row.releaseCode, row.releaseCause, row.customerTrunk, row.vendorTrunk]
+    return !term || [row.ani, row.dnis, row.lrn, row.releaseCode, row.releaseCause, row.customerTrunk]
       .some((value) => value.toLowerCase().includes(term));
   }), [q, rows]);
 
@@ -221,8 +214,8 @@ export function CallDiagnostic() {
 
   const exportCsv = () => {
     if (!filtered?.length) return;
-    const headers = ['Date Time', 'ANI', 'DNIS', 'LRN', 'Release Code', 'Release Cause', 'Duration', 'Customer Trunk', 'Vendor Trunk', 'Orig Juris', 'Rate'];
-    const values = filtered.map((row) => [row.dateTime, row.ani, row.dnis, row.lrn, row.releaseCode, row.releaseCause, row.duration, row.customerTrunk, row.vendorTrunk, row.origJuris, row.rate]);
+    const headers = ['Date Time', 'ANI', 'DNIS', 'LRN', 'Release Code', 'Release Cause', 'Duration', 'Customer Trunk', 'Orig Juris', 'Rate'];
+    const values = filtered.map((row) => [row.dateTime, row.ani, row.dnis, row.lrn, row.releaseCode, row.releaseCause, row.duration, row.customerTrunk, row.origJuris, row.rate]);
     const csv = [headers, ...values].map((record) => record.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(',')).join('\r\n');
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
     const link = document.createElement('a');
@@ -269,32 +262,26 @@ export function CallDiagnostic() {
               </Field>
             </div>
 
-            <div className="cdr-primary-filters">
-              <Field label="Switch location">
+            <div className="cdr-primary-filters cdr-compact-filters">
+              <Field label="Switch location" className="cdr-compact-field">
                 <select className="control-select" aria-label="Switch location" value={location} onChange={(event) => void changeLocation(event.target.value)} disabled={!filters || filterBusy}>
                   {!filters && <option>Loading…</option>}
                   {filters?.locations.map((item) => <option key={item} value={item}>{item}</option>)}
                 </select>
               </Field>
-              <Field label="Customer trunk">
+              <Field label="Customer trunk" className="cdr-compact-field">
                 <select className="control-select" aria-label="Customer trunk" value={customerTrunkGroupId} onChange={(event) => setCustomerTrunkGroupId(event.target.value)} disabled={!filters || filterBusy}>
                   <option value="">All customer trunks</option>
                   {filters?.customerTrunkGroups.map((group) => <option key={group.id} value={group.id}>{group.label}</option>)}
                 </select>
               </Field>
-              <Field label="Vendor trunk">
-                <select className="control-select" aria-label="Vendor trunk" value={vendorTrunkGroupId} onChange={(event) => setVendorTrunkGroupId(event.target.value)} disabled={!filters || filterBusy}>
-                  <option value="">All vendor trunks</option>
-                  {filters?.vendorTrunkGroups.map((group) => <option key={group.id} value={group.id}>{group.label}</option>)}
-                </select>
-              </Field>
+              <Field label="ANI" className="cdr-compact-field"><input className="control-input" aria-label="ANI" inputMode="tel" placeholder="ANI" value={ani} onChange={(event) => setAni(event.target.value)} /></Field>
+              <Field label="DNIS" className="cdr-compact-field"><input className="control-input" aria-label="DNIS" inputMode="tel" placeholder="Dialed number" value={dnis} onChange={(event) => setDnis(event.target.value)} /></Field>
             </div>
 
             <details className="cdr-advanced" open>
               <summary>Advanced filters</summary>
               <div className="cdr-advanced-grid">
-                <Field label="ANI"><input className="control-input" inputMode="tel" placeholder="Calling number" value={ani} onChange={(event) => setAni(event.target.value)} /></Field>
-                <Field label="DNIS"><input className="control-input" inputMode="tel" placeholder="Dialed number" value={dnis} onChange={(event) => setDnis(event.target.value)} /></Field>
                 <Field label="SIP Call ID"><input className="control-input" placeholder="Exact call ID" value={callId} onChange={(event) => setCallId(event.target.value)} /></Field>
                 <Field label="Release code"><input className="control-input" placeholder="e.g. 16" value={releaseCode} onChange={(event) => setReleaseCode(event.target.value)} /></Field>
                 <Field label="Minimum duration"><input className="control-input" type="number" min="0" placeholder="Seconds" value={minDuration} onChange={(event) => setMinDuration(event.target.value)} /></Field>
@@ -324,11 +311,11 @@ export function CallDiagnostic() {
             </div>
             <div className="table-scroll cdr-table-scroll">
               <table className="report-table cdr-table">
-                <thead><tr><th>Date / Time</th><th>ANI</th><th>DNIS</th><th>LRN</th><th>Release</th><th>Cause</th><th className="num">Duration</th><th>Customer trunk</th><th>Vendor trunk</th><th>Juris</th><th className="num">Rate</th></tr></thead>
+                <thead><tr><th>Date / Time</th><th>ANI</th><th>DNIS</th><th>LRN</th><th>Release</th><th>Cause</th><th className="num">Duration</th><th>Customer trunk</th><th>Juris</th><th className="num">Rate</th></tr></thead>
                 <tbody>{visibleRows?.map((row, index) => <tr key={`${row.dateTime}-${row.ani}-${index}`}>
                   <td className="date-cell">{formatUtc(row.dateTime)}</td><td className="mono-cell">{row.ani || '—'}</td><td className="mono-cell">{row.dnis || '—'}</td><td className="mono-cell">{row.lrn || '—'}</td>
                   <td><span className={`release-pill ${row.duration > 0 ? 'ok' : 'failed'}`}>{row.releaseCode || '—'}</span></td><td>{row.releaseCause || '—'}</td><td className="num">{formatDuration(row.duration)}</td>
-                  <td><TrunkCell value={row.customerTrunk} /></td><td><TrunkCell value={row.vendorTrunk} /></td><td>{row.origJuris || '—'}</td><td className="num">{row.rate.toFixed(5)}</td>
+                  <td><TrunkCell value={row.customerTrunk} /></td><td>{row.origJuris || '—'}</td><td className="num">{row.rate.toFixed(5)}</td>
                 </tr>)}</tbody>
               </table>
             </div>

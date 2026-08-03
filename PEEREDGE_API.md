@@ -4,7 +4,7 @@ This contract was verified read-only against the authorized carrier and switch-a
 
 ## Recommended production mode
 
-EasDial should use switch-admin `rest` mode for multiple customer relationships. The backend logs in once, lists carriers whose names start with the configured `ED` prefix, and applies the allocated carrier ID or its scoped trunk-group IDs to every read. The browser never receives the upstream credentials or token.
+EaseDial should use switch-admin `rest` mode for multiple customer relationships. The backend logs in once, lists carriers whose names start with the configured `ED` prefix, and applies the allocated carrier ID or its scoped trunk-group IDs to every read. The browser never receives the upstream credentials or token.
 
 - API base: `https://api-dialphone.peeredge.com/api/v2`
 - Login: `POST /login`
@@ -13,7 +13,7 @@ EasDial should use switch-admin `rest` mode for multiple customer relationships.
 
 ### Verified switch-admin reads
 
-| Method | Path | Scope used by EasDial |
+| Method | Path | Scope used by EaseDial |
 |---|---|---|
 | GET | `/carriers` | allocated carrier ID and live balance |
 | GET | `/trunk_groups/by_type_and_location` | carrier/customer trunk groups only |
@@ -26,7 +26,7 @@ EasDial should use switch-admin `rest` mode for multiple customer relationships.
 | GET | `/carrier_payments` | `carrier_id` |
 | GET | `/live_calls` | location plus carrier-name filtering |
 
-The verified CDR request includes `call_type`, `start_time`, `end_time`, `duration_min`, `duration_max`, `is_sanitize`, `location`, and scoped `columns`. EasDial supports ANI, DNIS, SIP release code, SIP call ID, duration range, A/B-leg selection, completion state, customer trunk, vendor trunk, and GMT date/time range.
+The verified CDR request includes `call_type`, `start_time`, `end_time`, `duration_min`, `duration_max`, `is_sanitize`, `location`, and scoped `columns`. EaseDial supports ANI, DNIS, SIP release code, SIP call ID, duration range, A/B-leg selection, completion state, customer trunk, vendor trunk, and GMT date/time range.
 
 Customer and vendor trunk IDs are never inferred from display labels. For termination traffic, the allocated customer trunk maps to `orig_trunk_group_id` and the selected vendor trunk maps to `term_trunk_group_id`. For origination traffic, the mapping is reversed. The backend validates the selected customer trunk against the allocated carrier and the vendor trunk against the selected direction and location before querying CDRs.
 
@@ -36,11 +36,11 @@ Customer and vendor trunk IDs are never inferred from display labels. For termin
 - Login: `POST /login`
 - Login JSON: `{ "user_name": "...", "password": "..." }`
 - Session token: returned in the login response `Authorization` header and sent in the same request header on later calls.
-- Portal credentials stay on the EasDial backend. They are never returned to the browser or committed to source control.
+- Portal credentials stay on the EaseDial backend. They are never returned to the browser or committed to source control.
 
 ## Verified reads
 
-| Method | Path | Important parameters | EasDial feature |
+| Method | Path | Important parameters | EaseDial feature |
 |---|---|---|---|
 | GET | `/me` | none | relationship identity and feature flags |
 | GET | `/dashboard/cps_ports` | none | ports and CPS header |
@@ -64,7 +64,7 @@ Customer and vendor trunk IDs are never inferred from display labels. For termin
 | GET | `/paypal_registrations` | none | PayPal history |
 | GET | `/portal_template_settings/by_carrier` | none | portal feature flags |
 
-The EasDial `RelationshipRestClient` normalizes these responses into stable internal types. It accepts both a direct array and a `{ "data": [...] }` wrapper because the observed endpoints use both response shapes.
+The EaseDial `RelationshipRestClient` normalizes these responses into stable internal types. It accepts both a direct array and a `{ "data": [...] }` wrapper because the observed endpoints use both response shapes.
 
 ## Confirmed field mappings
 

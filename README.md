@@ -1,10 +1,10 @@
-# EasDial Carrier Portal
+# EaseDial Carrier Portal
 
-An independent, EasDial-branded carrier reporting portal with a clean white-and-blue interface. It mirrors the useful workflows of the reference carrier portal while keeping EasDial authentication, authorization, and deployment under your control.
+An independent, EaseDial-branded carrier reporting portal with a clean white-and-blue interface. It mirrors the useful workflows of the reference carrier portal while keeping EaseDial authentication, authorization, and deployment under your control.
 
 ## Current capabilities
 
-- Secure EasDial login and tenant-scoped access tokens.
+- Secure EaseDial login and tenant-scoped access tokens.
 - Peeredge-style dashboard KPIs and functional minutes, attempts, ports, CPS, and profit graph tabs.
 - Relationship performance and numbering reports.
 - Termination/origination CDR diagnostics with a dual-month GMT calendar, independently validated customer/vendor trunk filters, advanced live filters, pagination, live calls, and scoped export history.

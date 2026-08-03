@@ -1,8 +1,8 @@
-/** Single source of truth for EasDial branding. Rebrand = edit this file. */
+/** Single source of truth for EaseDial branding. Rebrand = edit this file. */
 export const brand = {
-  name: 'EasDial',
+  name: 'EaseDial',
   productName: 'Carrier Portal',
-  company: 'EasDial, LLC',
+  company: 'EaseDial, LLC',
   primary: '#375dfb',
   primaryDark: '#2446dc',
   accent: '#0a9f6e',

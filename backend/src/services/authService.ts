@@ -4,7 +4,7 @@ import { Unauthorized } from '../lib/errors.js';
 import type { Account, AccountStore, PublicAccount } from './accountStore.js';
 import { toPublic } from './accountStore.js';
 
-/** Authentication against EasDial's own accounts (admin-managed). */
+/** Authentication against EaseDial's own accounts (admin-managed). */
 export class AuthService {
   constructor(private readonly accounts: AccountStore) {}
 

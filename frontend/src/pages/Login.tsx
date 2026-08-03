@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { ApiError } from '../api/client';
 import { brand } from '../theme/brand';
+import { BrandLogo } from '../components/BrandLogo';
 
 export function Login() {
   const { login, user, ready } = useAuth();
@@ -32,10 +33,9 @@ export function Login() {
 
   return (
     <main className="auth-shell">
-      <section className="auth-visual" aria-label="EasDial carrier operations">
+      <section className="auth-visual" aria-label="EaseDial carrier operations">
         <div className="brand-mark auth-brand">
-          <span className="brand-symbol">))</span>
-          <span className="brand-name">{brand.name}</span>
+          <BrandLogo inverse className="auth-logo" />
         </div>
         <div className="auth-statement">
           <span className="auth-index">01 / CARRIER OPERATIONS</span>

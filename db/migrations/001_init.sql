@@ -1,4 +1,4 @@
--- EasDial Carrier Portal — initial schema
+-- EaseDial Carrier Portal — initial schema
 -- Safe to run repeatedly (IF NOT EXISTS).
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;

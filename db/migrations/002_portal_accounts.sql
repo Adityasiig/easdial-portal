@@ -1,4 +1,4 @@
--- Durable accounts used by the EasDial admin/customer portal.
+-- Durable accounts used by the EaseDial admin/customer portal.
 CREATE TABLE IF NOT EXISTS portal_accounts (
     id                UUID PRIMARY KEY,
     email             TEXT        NOT NULL UNIQUE,

@@ -10,7 +10,7 @@ const schema = z.object({
   JWT_SECRET: z.string().min(16, 'JWT_SECRET must be at least 16 chars'),
   JWT_EXPIRES_IN: z.string().default('12h'),
 
-  // ---- EasDial admin (seeds the first admin account so you can log in) ----
+  // ---- EaseDial admin (seeds the first admin account so you can log in) ----
   EASDIAL_ADMIN_EMAIL: z.string().email().default('admin@easdial.com'),
   EASDIAL_ADMIN_PASSWORD: z.string().min(8).default('changeme_admin_password'),
 
@@ -33,7 +33,7 @@ const schema = z.object({
   // ---- Single relationship login (verified carrier-portal contract) ----
   PEEREDGE_RELATIONSHIP_USERNAME: z.string().optional(),
   PEEREDGE_RELATIONSHIP_PASSWORD: z.string().optional(),
-  PEEREDGE_RELATIONSHIP_NAME: z.string().default('EasDial Relationship'),
+  PEEREDGE_RELATIONSHIP_NAME: z.string().default('EaseDial Relationship'),
   PEEREDGE_RELATIONSHIP_LOGIN_PATH: z.string().default('/login'),
 
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
