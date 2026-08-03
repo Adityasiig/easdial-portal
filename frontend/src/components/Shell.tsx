@@ -51,7 +51,10 @@ export function Shell({ title, children }: { title: string; children: ReactNode 
               <span />
               <span />
             </button>
-            <h1>{title}</h1>
+            <div className="topbar-copy">
+              <span>Carrier workspace</span>
+              <h1>{title}</h1>
+            </div>
           </div>
           <div className="topbar-right">
             <div className="network-summary">

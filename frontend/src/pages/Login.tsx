@@ -32,15 +32,26 @@ export function Login() {
 
   return (
     <main className="auth-shell">
-      <section className="auth-card-wrap">
+      <section className="auth-visual" aria-label="EasDial carrier operations">
         <div className="brand-mark auth-brand">
           <span className="brand-symbol">))</span>
           <span className="brand-name">{brand.name}</span>
         </div>
+        <div className="auth-statement">
+          <span className="auth-index">01 / CARRIER OPERATIONS</span>
+          <h1>Every call.<br />Clearly measured.</h1>
+          <p>Live relationship performance, CDR diagnostics, rates, and accounting in one focused workspace.</p>
+        </div>
+        <div className="auth-signal" aria-hidden="true"><i /><i /><i /><i /></div>
+        <div className="auth-meta"><span>LIVE NETWORK DATA</span><span>GMT / 24H</span></div>
+      </section>
+      <section className="auth-panel">
+      <div className="auth-card-wrap">
         <form className="auth-card" onSubmit={onSubmit}>
           <div className="auth-form-head">
-            <h1>Sign in</h1>
-            <p>Sign in to access your carrier portal.</p>
+            <span>Secure access</span>
+            <h2>Sign in</h2>
+            <p>Use your assigned carrier portal credentials.</p>
           </div>
           {error && <div className="alert alert-error">{error}</div>}
           <label>
@@ -51,9 +62,10 @@ export function Login() {
             <span>Password</span>
             <input type="password" value={password} autoComplete="current-password" placeholder="Enter password" onChange={(e) => setPassword(e.target.value)} required />
           </label>
-          <button className="btn btn-primary auth-submit" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
+          <button className="btn btn-primary auth-submit" disabled={busy}><span>{busy ? 'Signing in…' : 'Enter workspace'}</span><b aria-hidden="true">→</b></button>
         </form>
         <p className="auth-legal">© {new Date().getFullYear()} {brand.company}</p>
+      </div>
       </section>
     </main>
   );

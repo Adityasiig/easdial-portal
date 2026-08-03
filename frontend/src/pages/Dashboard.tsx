@@ -53,18 +53,23 @@ export function Dashboard() {
     <Shell title="Dashboard">
       {error && <div className="alert alert-error">{error}</div>}
 
-      <section className="dashboard-kpis" aria-label="Daily account statistics">
+      <div className="dashboard-golden-layout">
+      <aside className="dashboard-kpis" aria-label="Daily account statistics">
+        <div className="dashboard-kpis-head">
+          <span>Today / GMT</span>
+          <b>Live metrics</b>
+        </div>
         {metrics.map(([label, value]) => (
           <article className="dashboard-kpi" key={label}>
             <span>{label}</span>
             <strong>{value}</strong>
           </article>
         ))}
-      </section>
+      </aside>
 
       <section className="panel peeredge-chart-panel">
         <div className="peeredge-overview-head">
-          <h2>Overview</h2>
+          <div><span className="panel-kicker">Traffic intelligence</span><h2>Overview</h2></div>
           <select className="overview-period" value={periodHours} aria-label="Dashboard time range" onChange={(event) => setPeriodHours(Number(event.target.value) as PeriodHours)}>
             <option value={2}>2 hours</option>
             <option value={4}>4 hours</option>
@@ -85,6 +90,7 @@ export function Dashboard() {
           ))}
         </div>
       </section>
+      </div>
     </Shell>
   );
 }
