@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import type { PeeredgeSession } from '../src/adapters/peeredge/PeeredgeSession.js';
 import { relationshipStartsWithBrandPrefix } from '../src/adapters/peeredge/relationshipFilter.js';
 import { scopedTrunkGroups, trunkNameFromCompleteName } from '../src/adapters/peeredge/trunkGroupFilter.js';
 
@@ -75,4 +76,45 @@ test('scopes live My Country Mobile customer trunks without leaking another carr
     { id: '1440', label: 'ED - My Country Mobile USA CONVO' },
     { id: '1439', label: 'ED - My Country Mobile USA SD' },
   ]);
+});
+
+test('refreshes the Peeredge relationship directory after 180 seconds', async () => {
+  process.env.JWT_SECRET ??= 'relationship-cache-test-secret-32-characters';
+  process.env.PEEREDGE_SOURCE ??= 'mock';
+  const { AdminRestClient } = await import('../src/adapters/peeredge/AdminRestClient.js');
+  const originalFetch = globalThis.fetch;
+  const originalNow = Date.now;
+  let now = 10_000;
+  let requests = 0;
+  Date.now = () => now;
+  globalThis.fetch = async () => {
+    requests += 1;
+    return new Response(JSON.stringify(requests === 1
+      ? [{ id: 1, carrier_name: 'ED - Existing' }]
+      : [{ id: 1, carrier_name: 'ED - Existing' }, { id: 2, carrier_name: 'ED - New' }]), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  };
+
+  const session = {
+    requestHeaders: async () => ({}),
+    refresh: async () => undefined,
+  } as unknown as PeeredgeSession;
+
+  try {
+    const client = new AdminRestClient('https://api.example.test', session, 'ED');
+    assert.deepEqual((await client.listRelationships()).map((relationship) => relationship.id), ['1']);
+
+    now += 179_999;
+    assert.deepEqual((await client.listRelationships()).map((relationship) => relationship.id), ['1']);
+    assert.equal(requests, 1);
+
+    now += 1;
+    assert.deepEqual((await client.listRelationships()).map((relationship) => relationship.id), ['1', '2']);
+    assert.equal(requests, 2);
+  } finally {
+    globalThis.fetch = originalFetch;
+    Date.now = originalNow;
+  }
 });

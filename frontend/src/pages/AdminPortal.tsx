@@ -5,6 +5,7 @@ import { BrandLogo } from '../components/BrandLogo';
 
 const errorMessage = (error: unknown, fallback: string) =>
   error instanceof ApiError ? error.message : error instanceof Error ? error.message : fallback;
+const RELATIONSHIP_SYNC_MS = 180_000;
 
 export function AdminPortal() {
   const { user, logout } = useAuth();
@@ -34,12 +35,12 @@ export function AdminPortal() {
     }
   }
 
-  async function loadRelationships() {
-    setLoadingRelationships(true);
+  async function loadRelationships(showLoading = true) {
+    if (showLoading) setLoadingRelationships(true);
     try {
       setRelationships(await api.admin.relationships());
     } finally {
-      setLoadingRelationships(false);
+      if (showLoading) setLoadingRelationships(false);
     }
   }
 
@@ -55,7 +56,20 @@ export function AdminPortal() {
   }
 
   useEffect(() => {
-    void refresh();
+    let cancelled = false;
+    let timer: number | undefined;
+    void refresh().finally(() => {
+      if (cancelled) return;
+      timer = window.setInterval(() => {
+        void loadRelationships(false).catch((syncError) => {
+          setError(errorMessage(syncError, 'Unable to refresh Peeredge relationships.'));
+        });
+      }, RELATIONSHIP_SYNC_MS);
+    });
+    return () => {
+      cancelled = true;
+      if (timer !== undefined) window.clearInterval(timer);
+    };
   }, []);
 
   async function onCreate(event: FormEvent) {

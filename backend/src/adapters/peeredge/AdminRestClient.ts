@@ -34,6 +34,7 @@ const numberValue = (value: unknown): number => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 const stringValue = (value: unknown): string => value == null ? '' : String(value);
+const CARRIER_CACHE_TTL_MS = 180_000;
 const records = (value: unknown): JsonRecord[] => Array.isArray(value)
   ? value.filter((item): item is JsonRecord => !!item && typeof item === 'object')
   : value && typeof value === 'object' && Array.isArray((value as JsonRecord).data)
@@ -52,6 +53,8 @@ const records = (value: unknown): JsonRecord[] => Array.isArray(value)
 export class AdminRestClient implements SwitchDataClient {
   private readonly base: string;
   private carriers: JsonRecord[] | null = null;
+  private carriersFetchedAt = 0;
+  private carriersInFlight: Promise<JsonRecord[]> | null = null;
 
   constructor(
     baseUrl: string,
@@ -322,8 +325,19 @@ export class AdminRestClient implements SwitchDataClient {
   }
 
   private async getCarriers(): Promise<JsonRecord[]> {
-    if (!this.carriers) this.carriers = records(await this.getJson<unknown>('/carriers'));
-    return this.carriers;
+    if (this.carriers && Date.now() - this.carriersFetchedAt < CARRIER_CACHE_TTL_MS) return this.carriers;
+    if (!this.carriersInFlight) {
+      this.carriersInFlight = this.getJson<unknown>('/carriers')
+        .then((payload) => {
+          this.carriers = records(payload);
+          this.carriersFetchedAt = Date.now();
+          return this.carriers;
+        })
+        .finally(() => {
+          this.carriersInFlight = null;
+        });
+    }
+    return this.carriersInFlight;
   }
 
   private async getCarrier(relationshipId: string): Promise<JsonRecord> {
