@@ -22,13 +22,18 @@ function displayValue(value: string): string {
   return `${String(date.getUTCMonth() + 1).padStart(2, '0')}/${String(date.getUTCDate()).padStart(2, '0')}/${date.getUTCFullYear()}, ${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}:00`;
 }
 
+function displayDateValue(value: string): string {
+  const date = parseUtc(value);
+  return `${String(date.getUTCMonth() + 1).padStart(2, '0')}/${String(date.getUTCDate()).padStart(2, '0')}/${date.getUTCFullYear()}`;
+}
+
 function monthDays(month: Date): Date[] {
   const mondayOffset = (month.getUTCDay() + 6) % 7;
   const start = new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth(), 1 - mondayOffset));
   return Array.from({ length: 42 }, (_, index) => new Date(start.getTime() + index * 86_400_000));
 }
 
-export function DateRangePicker({ start, end, onChange }: { start: string; end: string; onChange: (start: string, end: string) => void }) {
+export function DateRangePicker({ start, end, onChange, dateOnly = false }: { start: string; end: string; onChange: (start: string, end: string) => void; dateOnly?: boolean }) {
   const root = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [draftStart, setDraftStart] = useState(start);
@@ -61,52 +66,57 @@ export function DateRangePicker({ start, end, onChange }: { start: string; end: 
       setChoosingEnd(true);
       return;
     }
-    const nextEnd = replaceDate(draftEnd, date);
-    if (parseUtc(nextEnd) < parseUtc(draftStart)) {
-      setDraftStart(replaceDate(draftStart, date));
-    } else {
-      setDraftEnd(nextEnd);
-    }
+    const selectedEnd = replaceDate(draftEnd, date);
+    const beforeStart = parseUtc(selectedEnd) < parseUtc(draftStart);
+    const nextStart = beforeStart ? replaceDate(draftStart, date) : draftStart;
+    const nextEnd = beforeStart ? replaceDate(draftEnd, parseUtc(draftStart)) : selectedEnd;
+    setDraftStart(nextStart);
+    setDraftEnd(nextEnd);
     setChoosingEnd(false);
+    if (dateOnly) {
+      onChange(nextStart, nextEnd);
+      setOpen(false);
+    }
   };
 
   const valid = parseUtc(draftEnd).getTime() > parseUtc(draftStart).getTime();
 
   return (
     <div className="range-picker" ref={root}>
-      <button className={`range-picker-trigger ${open ? 'open' : ''}`} type="button" onClick={() => open ? setOpen(false) : show()} aria-haspopup="dialog" aria-expanded={open}>
+      <button className={`range-picker-trigger ${dateOnly ? 'date-only' : ''} ${open ? 'open' : ''}`} type="button" onClick={() => open ? setOpen(false) : show()} aria-haspopup="dialog" aria-expanded={open}>
         <CalendarIcon />
-        <span>{displayValue(start)}&nbsp;&nbsp; - &nbsp;&nbsp;{displayValue(end)}</span>
-        <ChevronIcon />
+        <span>{dateOnly ? displayDateValue(start) : displayValue(start)}&nbsp;&nbsp; - &nbsp;&nbsp;{dateOnly ? displayDateValue(end) : displayValue(end)}</span>
+        {!dateOnly && <ChevronIcon />}
       </button>
       {open && (
-        <div className="range-popover" role="dialog" aria-label="Choose date and time range">
+        <div className={`range-popover single-month ${dateOnly ? 'date-only-popover' : 'timed-popover'}`} role="dialog" aria-label={dateOnly ? 'Choose date range' : 'Choose date and time range'}>
           <div className="range-calendars">
-            <CalendarMonth month={cursor} start={draftStart} end={draftEnd} onChoose={chooseDay} onMonthChange={setCursor} previous={() => setCursor(addMonths(cursor, -1))} />
-            <CalendarMonth month={addMonths(cursor, 1)} start={draftStart} end={draftEnd} onChoose={chooseDay} onMonthChange={(month) => setCursor(addMonths(month, -1))} next={() => setCursor(addMonths(cursor, 1))} />
+            <CalendarMonth month={cursor} start={draftStart} end={draftEnd} onChoose={chooseDay} onMonthChange={setCursor} simpleHeader previous={() => setCursor(addMonths(cursor, -1))} next={() => setCursor(addMonths(cursor, 1))} />
           </div>
-          <div className="range-time-row">
-            <label><span>From</span><input type="time" step="1" value={draftStart.slice(11, 19)} onChange={(event) => setDraftStart(replaceTime(draftStart, event.target.value))} /></label>
-            <span className="range-time-separator">to</span>
-            <label><span>To</span><input type="time" step="1" value={draftEnd.slice(11, 19)} onChange={(event) => setDraftEnd(replaceTime(draftEnd, event.target.value))} /></label>
-            <span className="range-time-zone">GMT</span>
-          </div>
-          <div className="range-actions">
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen(false)}>Cancel</button>
-            <button type="button" className="btn btn-primary btn-sm" disabled={!valid} onClick={() => { onChange(draftStart, draftEnd); setOpen(false); }}>Apply</button>
-          </div>
+          {!dateOnly && <>
+            <div className="range-time-row">
+              <label><span>From:</span><input type="time" step="1" value={draftStart.slice(11, 19)} onChange={(event) => setDraftStart(replaceTime(draftStart, event.target.value))} /></label>
+              <label><span>To:</span><input type="time" step="1" value={draftEnd.slice(11, 19)} onChange={(event) => setDraftEnd(replaceTime(draftEnd, event.target.value))} /></label>
+              <span className="range-time-zone">GMT</span>
+            </div>
+            <div className="range-actions">
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen(false)}>Cancel</button>
+              <button type="button" className="btn btn-primary btn-sm" disabled={!valid} onClick={() => { onChange(draftStart, draftEnd); setOpen(false); }}>Apply</button>
+            </div>
+          </>}
         </div>
       )}
     </div>
   );
 }
 
-function CalendarMonth({ month, start, end, onChoose, onMonthChange, previous, next }: {
+function CalendarMonth({ month, start, end, onChoose, onMonthChange, simpleHeader = false, previous, next }: {
   month: Date;
   start: string;
   end: string;
   onChoose: (date: Date) => void;
   onMonthChange: (date: Date) => void;
+  simpleHeader?: boolean;
   previous?: () => void;
   next?: () => void;
 }) {
@@ -118,14 +128,14 @@ function CalendarMonth({ month, start, end, onChoose, onMonthChange, previous, n
     <div className="calendar-month">
       <div className="calendar-head">
         {previous ? <button type="button" onClick={previous} aria-label="Previous month">‹</button> : <span />}
-        <div className="calendar-selects">
+        {simpleHeader ? <div className="calendar-title">{MONTHS[month.getUTCMonth()].slice(0, 3)}&nbsp; {month.getUTCFullYear()}</div> : <div className="calendar-selects">
           <select aria-label="Month" value={month.getUTCMonth()} onChange={(event) => onMonthChange(new Date(Date.UTC(month.getUTCFullYear(), Number(event.target.value), 1)))}>
             {MONTHS.map((name, index) => <option value={index} key={name}>{name}</option>)}
           </select>
           <select aria-label="Year" value={month.getUTCFullYear()} onChange={(event) => onMonthChange(new Date(Date.UTC(Number(event.target.value), month.getUTCMonth(), 1)))}>
             {years.map((year) => <option value={year} key={year}>{year}</option>)}
           </select>
-        </div>
+        </div>}
         {next ? <button type="button" onClick={next} aria-label="Next month">›</button> : <span />}
       </div>
       <div className="calendar-grid calendar-weekdays">{WEEKDAYS.map((day) => <span key={day}>{day}</span>)}</div>

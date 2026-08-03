@@ -1474,7 +1474,33 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .app-shell .legend { gap: 18px; margin-top: 10px; color: #6b7280; font-size: 11px; }
 
 /* Reports and CDR */
-.app-shell .performance-filter-row { grid-template-columns: minmax(180px,1fr) minmax(0,1.618fr); gap: 10px; padding: 14px; border-radius: 10px; }
+.app-shell .performance-filter-row {
+  width: max-content;
+  max-width: 100%;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.app-shell .performance-filter-row .preset-select {
+  width: 150px;
+  flex: 0 0 150px;
+  border-radius: 7px 0 0 7px;
+}
+.app-shell .performance-filter-row .range-picker { width: 286px; flex: 0 1 286px; }
+.app-shell .performance-filter-row .range-picker-trigger {
+  width: 100%;
+  min-width: 0;
+  border-left: 0;
+  border-radius: 0 7px 7px 0;
+}
+.app-shell .performance-filter-row .range-picker-trigger.date-only { justify-content: flex-start; gap: 9px; }
+.app-shell .performance-filter-row .range-picker-trigger.date-only span { white-space: nowrap; }
 .app-shell .performance-subrow { margin-top: 16px; padding-bottom: 8px; }
 .app-shell .cdr-workspace { gap: 16px; }
 .app-shell .cdr-query-panel,
@@ -1525,6 +1551,31 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 /* Date range popover */
 .app-shell .range-popover { top: 48px; width: 620px; border: 1px solid #e5e7eb; border-radius: 10px; box-shadow: 0 14px 38px rgba(15,23,42,.14); }
+.app-shell .range-popover.single-month { width: 360px; }
+.app-shell .single-month .range-calendars { grid-template-columns: 1fr; }
+.app-shell .single-month .calendar-month + .calendar-month { border: 0; }
+.app-shell .calendar-title { color: #1f2937; text-align: center; font-size: 14px; font-weight: 600; }
+.app-shell .performance-filter-row .range-popover.single-month { left: -150px; }
+.app-shell .cdr-period-field .range-popover.single-month { left: 0; }
+.app-shell .timed-popover .range-time-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 12px 16px;
+}
+.app-shell .timed-popover .range-time-row label {
+  grid-column: 1;
+  display: grid;
+  grid-template-columns: 48px minmax(0,1fr);
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+.app-shell .timed-popover .range-time-row label > span { min-width: 0; text-align: right; }
+.app-shell .timed-popover .range-time-row input { width: 100%; height: 36px; font-size: 12px; }
+.app-shell .timed-popover .range-time-zone { grid-column: 2; grid-row: 1 / span 2; align-self: end; padding-bottom: 8px; }
+.app-shell .timed-popover .range-actions { padding: 8px 16px; background: #fff; }
 .app-shell .calendar-month { padding: 14px; }
 .app-shell .calendar-head { margin-bottom: 10px; }
 .app-shell .calendar-head > button { width: 30px; height: 30px; border-radius: 7px; }
@@ -1561,6 +1612,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .app-shell .topbar { height: 60px; min-height: 60px; padding: 0 14px; }
   .app-shell .topbar h1 { font-size: 21px; }
   .app-shell .content { padding: 14px 10px; }
+  .app-shell .performance-filter-row { width: 100%; flex-direction: column; gap: 8px; }
+  .app-shell .performance-filter-row .preset-select,
+  .app-shell .performance-filter-row .range-picker { width: 100%; flex-basis: auto; }
+  .app-shell .performance-filter-row .preset-select,
+  .app-shell .performance-filter-row .range-picker-trigger { border: 1px solid #d1d5db; border-radius: 7px; }
+  .app-shell .range-popover.single-month,
+  .app-shell .performance-filter-row .range-popover.single-month,
+  .app-shell .cdr-period-field .range-popover.single-month { left: 12px; width: calc(100vw - 24px); }
   .app-shell .dashboard-kpis { grid-template-columns: 1fr; }
   .app-shell .dashboard-kpi:nth-child(even) { border-left: 0 !important; }
   .app-shell .dashboard-kpi + .dashboard-kpi { border-top: 1px solid #e5e7eb !important; }

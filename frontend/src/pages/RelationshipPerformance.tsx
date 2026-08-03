@@ -99,7 +99,7 @@ export function RelationshipPerformance() {
           <option value="last-7-days">Last 7 Days</option>
           <option value="custom">Custom</option>
         </select>
-        <DateRangePicker start={startTime} end={endTime} onChange={(start, end) => { setRange('custom'); setStartTime(start); setEndTime(end); }} />
+        <DateRangePicker dateOnly start={startTime} end={endTime} onChange={(start, end) => { setRange('custom'); setStartTime(start); setEndTime(end); }} />
       </div>
 
       <div className="performance-subrow">
