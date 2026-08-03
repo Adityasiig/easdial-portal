@@ -56,11 +56,6 @@ export function CallDiagnostic() {
   const [customerTrunkGroupId, setCustomerTrunkGroupId] = useState('');
   const [ani, setAni] = useState('');
   const [dnis, setDnis] = useState('');
-  const [releaseCode, setReleaseCode] = useState('');
-  const [callId, setCallId] = useState('');
-  const [minDuration, setMinDuration] = useState('');
-  const [maxDuration, setMaxDuration] = useState('');
-  const [includeBLeg, setIncludeBLeg] = useState(false);
   const [rows, setRows] = useState<CdrRow[] | null>(null);
   const [liveRows, setLiveRows] = useState<LiveCallRow[] | null>(null);
   const [exportRows, setExportRows] = useState<CdrExportRow[] | null>(null);
@@ -140,10 +135,6 @@ export function CallDiagnostic() {
       setError('Choose a valid GMT date range before generating the report.');
       return;
     }
-    if (minDuration && maxDuration && Number(maxDuration) < Number(minDuration)) {
-      setError('Maximum duration must be greater than or equal to minimum duration.');
-      return;
-    }
     const customer = filters?.customerTrunkGroups.find((group) => group.id === customerTrunkGroupId);
     setRows(null);
     setGenerated(true);
@@ -159,11 +150,6 @@ export function CallDiagnostic() {
         customerTrunkGroupLabel: customer?.label,
         ani: ani.trim() || undefined,
         dnis: dnis.trim() || undefined,
-        releaseCode: releaseCode.trim() || undefined,
-        callId: callId.trim() || undefined,
-        minDuration: minDuration === '' ? undefined : Number(minDuration),
-        maxDuration: maxDuration === '' ? undefined : Number(maxDuration),
-        includeBLeg,
         status: nextStatus,
       });
       setRows(data);
@@ -189,11 +175,6 @@ export function CallDiagnostic() {
     setCustomerTrunkGroupId('');
     setAni('');
     setDnis('');
-    setReleaseCode('');
-    setCallId('');
-    setMinDuration('');
-    setMaxDuration('');
-    setIncludeBLeg(false);
     setRows(null);
     setGenerated(false);
     setQ('');
@@ -278,17 +259,6 @@ export function CallDiagnostic() {
               <Field label="ANI" className="cdr-compact-field"><input className="control-input" aria-label="ANI" inputMode="tel" placeholder="ANI" value={ani} onChange={(event) => setAni(event.target.value)} /></Field>
               <Field label="DNIS" className="cdr-compact-field"><input className="control-input" aria-label="DNIS" inputMode="tel" placeholder="Dialed number" value={dnis} onChange={(event) => setDnis(event.target.value)} /></Field>
             </div>
-
-            <details className="cdr-advanced" open>
-              <summary>Advanced filters</summary>
-              <div className="cdr-advanced-grid">
-                <Field label="SIP Call ID"><input className="control-input" placeholder="Exact call ID" value={callId} onChange={(event) => setCallId(event.target.value)} /></Field>
-                <Field label="Release code"><input className="control-input" placeholder="e.g. 16" value={releaseCode} onChange={(event) => setReleaseCode(event.target.value)} /></Field>
-                <Field label="Minimum duration"><input className="control-input" type="number" min="0" placeholder="Seconds" value={minDuration} onChange={(event) => setMinDuration(event.target.value)} /></Field>
-                <Field label="Maximum duration"><input className="control-input" type="number" min="0" placeholder="Seconds" value={maxDuration} onChange={(event) => setMaxDuration(event.target.value)} /></Field>
-              </div>
-              <label className="include-leg"><input type="checkbox" checked={includeBLeg} onChange={(event) => setIncludeBLeg(event.target.checked)} /><span>Include B-leg records</span></label>
-            </details>
 
             <div className="cdr-query-footer">
               <div className="cdr-status-tabs" role="tablist" aria-label="Call status">
