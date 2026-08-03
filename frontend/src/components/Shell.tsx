@@ -22,28 +22,12 @@ export function Shell({ title, children }: { title: string; children: ReactNode 
   const [menuOpen, setMenuOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const [upstream, setUpstream] = useState<UpstreamHealth | null>(null);
-  const [network, setNetwork] = useState<{ calls: number | null; cps: number | null }>({ calls: null, cps: null });
   const initial = (user?.email?.[0] ?? 'E').toUpperCase();
 
   useEffect(() => {
     let active = true;
     void api.upstreamHealth().then((health) => active && setUpstream(health)).catch(() => undefined);
     return () => { active = false; };
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-    const load = async () => {
-      try {
-        const stats = await api.headerStats();
-        if (active) setNetwork({ calls: stats.activeCalls, cps: stats.activeCps });
-      } catch {
-        // Keep the last confirmed counters during a temporary upstream failure.
-      }
-    };
-    void load();
-    const timer = window.setInterval(() => void load(), 30_000);
-    return () => { active = false; window.clearInterval(timer); };
   }, []);
 
   return (
@@ -64,10 +48,6 @@ export function Shell({ title, children }: { title: string; children: ReactNode 
             </div>
           </div>
           <div className="topbar-right">
-            <div className="network-summary" aria-label="Live network activity" aria-live="polite">
-              <span className="topstat"><span>Active Calls:</span><b>{network.calls ?? '—'}</b></span>
-              <span className="topstat"><span>Active CPS:</span><b>{network.cps ?? '—'}</b></span>
-            </div>
             <span className="clock">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
                 <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
