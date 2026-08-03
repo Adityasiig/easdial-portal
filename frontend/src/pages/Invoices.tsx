@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, type InvoiceRow } from '../api/client';
 import { Shell } from '../components/Shell';
-import { SearchIcon } from './SendPayment';
+import { SearchIcon } from '../components/SearchIcon';
 
 const money = (n: number) => `$${n.toFixed(2)}`;
 

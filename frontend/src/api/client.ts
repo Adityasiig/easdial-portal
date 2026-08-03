@@ -155,18 +155,6 @@ export interface TransactionRow {
   addedFrom: string;
 }
 
-export interface PaymentRow {
-  carrierName: string;
-  description: string;
-  invoiceId: string;
-  totalAmount: number;
-  paidTo: string;
-  paypalFee: number;
-  purchasedAt: string;
-  reason: string;
-  status: string;
-}
-
 export interface UpstreamHealth {
   source: 'mock' | 'rest' | 'relationship';
 }
@@ -280,7 +268,6 @@ export const api = {
     download(`/metrics/rates/${encodeURIComponent(rateSheetId)}/download`),
   invoices: () => request<InvoiceRow[]>('/metrics/invoices'),
   transactions: () => request<TransactionRow[]>('/metrics/transactions'),
-  payments: () => request<PaymentRow[]>('/metrics/payments'),
 
   // admin
   admin: {

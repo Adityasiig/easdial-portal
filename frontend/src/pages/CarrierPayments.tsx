@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, type TransactionRow } from '../api/client';
 import { Shell } from '../components/Shell';
-import { SearchIcon } from './SendPayment';
+import { SearchIcon } from '../components/SearchIcon';
 
 const GROUPS = ['All Transactions', 'NRC', 'MRC'] as const;
 type Group = (typeof GROUPS)[number];

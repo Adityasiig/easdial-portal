@@ -51,7 +51,6 @@ const NAV: Array<{ section: string; items: Array<Item | Group> }> = [
     items: [{
       label: 'Accounting', icon: IconAcct,
       children: [
-        { to: '/accounting/send-payment', label: 'Send payment' },
         { to: '/accounting/invoices', label: 'Invoices' },
         { to: '/accounting/view-rates', label: 'View rates' },
         { to: '/accounting/carrier-payments', label: 'Carrier payments' },

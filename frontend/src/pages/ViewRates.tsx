@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, type RateRow } from '../api/client';
 import { Shell } from '../components/Shell';
-import { SearchIcon } from './SendPayment';
+import { SearchIcon } from '../components/SearchIcon';
 
 const TABS = ['Standard', 'Global'] as const;
 type Tab = (typeof TABS)[number];

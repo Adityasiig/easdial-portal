@@ -5,7 +5,6 @@ import { Dashboard } from './pages/Dashboard';
 import { RelationshipPerformance } from './pages/RelationshipPerformance';
 import { Numbering } from './pages/Numbering';
 import { CallDiagnostic } from './pages/CallDiagnostic';
-import { SendPayment } from './pages/SendPayment';
 import { Invoices } from './pages/Invoices';
 import { ViewRates } from './pages/ViewRates';
 import { CarrierPayments } from './pages/CarrierPayments';
@@ -48,7 +47,6 @@ const PAGES: Array<[string, () => JSX.Element]> = [
   ['/reportings/relationship', RelationshipPerformance],
   ['/reportings/numbering', Numbering],
   ['/call-diagnostic', CallDiagnostic],
-  ['/accounting/send-payment', SendPayment],
   ['/accounting/invoices', Invoices],
   ['/accounting/view-rates', ViewRates],
   ['/accounting/carrier-payments', CarrierPayments],
