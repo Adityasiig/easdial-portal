@@ -21,22 +21,13 @@ export function Shell({ title, children }: { title: string; children: ReactNode 
   const clock = useGmtClock();
   const [menuOpen, setMenuOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
-  const [activeCalls, setActiveCalls] = useState<number | null>(null);
   const [upstream, setUpstream] = useState<UpstreamHealth | null>(null);
   const initial = (user?.email?.[0] ?? 'E').toUpperCase();
 
   useEffect(() => {
     let active = true;
-    const loadCalls = () => api.liveCalls()
-      .then((rows) => active && setActiveCalls(rows.length))
-      .catch(() => active && setActiveCalls(null));
-    void loadCalls();
     void api.upstreamHealth().then((health) => active && setUpstream(health)).catch(() => undefined);
-    const timer = window.setInterval(loadCalls, 15_000);
-    return () => {
-      active = false;
-      window.clearInterval(timer);
-    };
+    return () => { active = false; };
   }, []);
 
   return (
@@ -57,10 +48,6 @@ export function Shell({ title, children }: { title: string; children: ReactNode 
             </div>
           </div>
           <div className="topbar-right">
-            <div className="network-summary">
-              <span className="topstat"><span className="meter-ring" /><b>Active Calls:</b> {activeCalls ?? '—'}</span>
-              <span className="topstat" title="CPS is not supplied by the configured upstream"><span className="meter-ring muted" /><b>Active CPS:</b> —</span>
-            </div>
             <span className="clock">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
                 <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
