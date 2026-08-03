@@ -133,17 +133,20 @@ test('admin-created customer is scoped, functional, and revocable', async () => 
     assert.equal(ratesResponse.statusCode, 200);
     const rates = ratesResponse.json<Array<{ id: string; name: string; relationship: string }>>();
     assert.ok(rates.length > 0);
-    assert.ok(rates.every((rate) => rate.relationship === 'Customer'));
+    assert.ok(rates.some((rate) => rate.relationship === 'Customer'));
+    assert.ok(rates.some((rate) => rate.relationship === 'Vendor'));
 
-    const rateDownloadResponse = await app.inject({
-      method: 'GET',
-      url: `/metrics/rates/${encodeURIComponent(rates[0].id)}/download`,
-      headers: customerHeaders,
-    });
-    assert.equal(rateDownloadResponse.statusCode, 200);
-    assert.match(rateDownloadResponse.headers['content-type'] ?? '', /text\/csv/);
-    assert.match(rateDownloadResponse.headers['content-disposition'] ?? '', /attachment; filename=/);
-    assert.match(rateDownloadResponse.body, /"Prefix","Interstate Rate","Intrastate Rate"/);
+    for (const rate of rates) {
+      const rateDownloadResponse = await app.inject({
+        method: 'GET',
+        url: `/metrics/rates/${encodeURIComponent(rate.id)}/download`,
+        headers: customerHeaders,
+      });
+      assert.equal(rateDownloadResponse.statusCode, 200, rate.name);
+      assert.match(rateDownloadResponse.headers['content-type'] ?? '', /text\/csv/);
+      assert.match(rateDownloadResponse.headers['content-disposition'] ?? '', /attachment; filename=/);
+      assert.match(rateDownloadResponse.body, /"Prefix","Interstate Rate","Intrastate Rate"/);
+    }
 
     const unauthorizedDeckResponse = await app.inject({
       method: 'GET',

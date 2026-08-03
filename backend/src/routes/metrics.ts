@@ -8,8 +8,6 @@ import { BadRequest, NotFound } from '../lib/errors.js';
 export async function metricsRoutes(app: FastifyInstance, authService: AuthService): Promise<void> {
   app.addHook('preHandler', requireAuth(authService));
 
-  const isCustomerRate = (relationship: string): boolean => ['customer', '1'].includes(relationship.trim().toLowerCase());
-
   /** The relationship this request may read: the user's own, or (for an admin) a previewed one. */
   function scope(req: FastifyRequest): {
     relationshipId: string;
@@ -91,15 +89,13 @@ export async function metricsRoutes(app: FastifyInstance, authService: AuthServi
   // Accounting
   app.get('/metrics/rates', async (req) => {
     const { relationshipId } = scope(req);
-    const rates = await getSwitchClient().getRates(relationshipId);
-    return rates.filter((rate) => isCustomerRate(rate.relationship));
+    return getSwitchClient().getRates(relationshipId);
   });
 
   app.get('/metrics/rates/:rateSheetId/download', async (req, reply) => {
     const { relationshipId } = scope(req);
     const { rateSheetId } = req.params as { rateSheetId: string };
-    const rates = (await getSwitchClient().getRates(relationshipId))
-      .filter((rate) => isCustomerRate(rate.relationship));
+    const rates = await getSwitchClient().getRates(relationshipId);
     if (!rates.some((rate) => rate.id === rateSheetId)) {
       throw NotFound('Rate deck not found for this customer', 'rate_deck_not_found');
     }

@@ -219,10 +219,10 @@ export class MockSwitchClient implements SwitchDataClient {
       },
       {
         id: `${relationshipId}-flat`,
-        name: `${base} USA Flat`,
+        name: `${base} USA Vendor`,
         trunkGroups: 0,
         direction: 'Termination',
-        relationship: 'Customer',
+        relationship: 'Vendor',
         location: 'US & Canada',
         type: 'Prefix Jurisdiction (NPANXX)',
         totalRates: 140_000 + (seed % 50_000),
