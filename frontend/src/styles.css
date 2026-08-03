@@ -1633,3 +1633,185 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .app-shell .cdr-range-row .range-picker-trigger { border: 1px solid #d1d5db; border-radius: 10px; }
   .app-shell .report-table { font-size: 12px; }
 }
+
+/* Customer typography system
+   13px reading base -> 21px page title (13 x 1.618), with restrained UI weights. */
+.app-shell {
+  --type-micro: 9.5px;
+  --type-caption: 11px;
+  --type-control: 12px;
+  --type-body: 13px;
+  --type-section: 17px;
+  --type-page: 21px;
+  font-family: 'Inter Variable', Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: var(--type-body);
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: -.006em;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  font-variant-numeric: tabular-nums;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+.app-shell button,
+.app-shell input,
+.app-shell select,
+.app-shell textarea { font-family: inherit; }
+
+.app-shell .topbar h1 {
+  font-size: var(--type-page);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -.032em;
+}
+.app-shell .panel-head h2,
+.app-shell .panel h2,
+.app-shell .peeredge-overview-head h2,
+.app-shell .cdr-panel-heading h2,
+.app-shell .cdr-results-head h2 {
+  font-size: var(--type-section);
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -.022em;
+}
+.app-shell .section-title {
+  font-size: var(--type-page);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -.03em;
+}
+
+.app-shell .nav-item,
+.app-shell .nav-parent {
+  font-size: var(--type-body);
+  font-weight: 500;
+  line-height: 1.45;
+  letter-spacing: -.01em;
+}
+.app-shell .nav-item.active,
+.app-shell .nav-parent.parent-active,
+.app-shell .nav-child.active { font-weight: 600; }
+.app-shell .nav-child {
+  font-size: var(--type-control);
+  font-weight: 450;
+  line-height: 1.5;
+}
+.app-shell .nav-section-label,
+.app-shell .topbar-copy > span,
+.app-shell .panel-kicker {
+  font-size: var(--type-micro);
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: .1em;
+}
+
+.app-shell .tab {
+  font-size: var(--type-control);
+  font-weight: 500;
+  line-height: 1.5;
+}
+.app-shell .tab-active { font-weight: 600; }
+.app-shell .btn,
+.app-shell .seg,
+.app-shell .cdr-status-tabs button,
+.app-shell .diagnostic-report-tabs button {
+  font-size: var(--type-control);
+  font-weight: 550;
+  line-height: 1.25;
+  letter-spacing: -.005em;
+}
+.app-shell .inline-select,
+.app-shell .control-select,
+.app-shell .control-input,
+.app-shell .search-input,
+.app-shell .date-pill,
+.app-shell .range-picker-trigger,
+.app-shell .cdr-field .control-input,
+.app-shell .cdr-field .control-select,
+.app-shell .cdr-period-field .range-picker-trigger {
+  font-size: var(--type-control);
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0;
+}
+.app-shell .cdr-field > span,
+.app-shell .field,
+.app-shell .timed-popover .range-time-row label {
+  font-size: var(--type-caption);
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.app-shell .dashboard-kpi span {
+  font-size: var(--type-caption);
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: .01em;
+}
+.app-shell .dashboard-kpi strong {
+  font-size: 23px;
+  font-weight: 620;
+  line-height: 1.15;
+  letter-spacing: -.035em;
+}
+.app-shell .legend,
+.app-shell .topbar-right,
+.app-shell .topstat,
+.app-shell .clock,
+.app-shell .page-footer {
+  font-size: var(--type-caption);
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.app-shell .report-table {
+  font-size: var(--type-control);
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: -.003em;
+}
+.app-shell .report-table thead th {
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: .045em;
+}
+.app-shell .badge,
+.app-shell .tag,
+.app-shell .call-status,
+.app-shell .release-pill { font-weight: 550; }
+.app-shell .empty-title {
+  font-size: var(--type-body);
+  font-weight: 600;
+  line-height: 1.4;
+}
+.app-shell .empty-sub,
+.app-shell .table-pagination,
+.app-shell .cdr-pagination {
+  font-size: var(--type-caption);
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.app-shell .calendar-title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -.015em;
+}
+.app-shell .calendar-selects select,
+.app-shell .calendar-grid button {
+  font-size: var(--type-caption);
+  font-weight: 450;
+}
+.app-shell .calendar-weekdays span {
+  font-size: var(--type-micro);
+  font-weight: 600;
+  letter-spacing: .04em;
+}
+
+@media (max-width: 700px) {
+  .app-shell { --type-page: 20px; }
+  .app-shell .topbar h1 { font-size: var(--type-page); }
+}
