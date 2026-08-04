@@ -25,6 +25,8 @@ export function AdminPortal() {
   const [adminEmail, setAdminEmail] = useState(user?.email ?? '');
   const [currentAdminPassword, setCurrentAdminPassword] = useState('');
   const [newAdminPassword, setNewAdminPassword] = useState('');
+  const [showCurrentAdminPassword, setShowCurrentAdminPassword] = useState(false);
+  const [showNewAdminPassword, setShowNewAdminPassword] = useState(false);
   const [accountBusy, setAccountBusy] = useState(false);
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
@@ -234,12 +236,22 @@ export function AdminPortal() {
             </label>
             <label className="admin-field">
               <span>Current password</span>
-              <input type="password" value={currentAdminPassword} autoComplete="current-password" onChange={(event) => setCurrentAdminPassword(event.target.value)} required />
+              <span className="admin-password-field">
+                <input type={showCurrentAdminPassword ? 'text' : 'password'} value={currentAdminPassword} autoComplete="current-password" onChange={(event) => setCurrentAdminPassword(event.target.value)} required />
+                <button type="button" className="password-toggle" onClick={() => setShowCurrentAdminPassword((visible) => !visible)} aria-label={showCurrentAdminPassword ? 'Hide current password' : 'Show current password'}>
+                  {showCurrentAdminPassword ? 'Hide' : 'Show'}
+                </button>
+              </span>
               <small className="field-help">Required to confirm this change.</small>
             </label>
             <label className="admin-field">
-              <span>New password <em>(optional)</em></span>
-              <input type="password" value={newAdminPassword} autoComplete="new-password" minLength={8} placeholder="Leave blank to keep it" onChange={(event) => setNewAdminPassword(event.target.value)} />
+              <span>New password</span>
+              <span className="admin-password-field">
+                <input type={showNewAdminPassword ? 'text' : 'password'} value={newAdminPassword} autoComplete="new-password" minLength={8} placeholder="Leave blank to keep it" onChange={(event) => setNewAdminPassword(event.target.value)} />
+                <button type="button" className="password-toggle" onClick={() => setShowNewAdminPassword((visible) => !visible)} aria-label={showNewAdminPassword ? 'Hide new password' : 'Show new password'}>
+                  {showNewAdminPassword ? 'Hide' : 'Show'}
+                </button>
+              </span>
               <small className="field-help">Use at least 8 characters.</small>
             </label>
             <button className="admin-create-button admin-account-save" disabled={accountBusy || !adminEmailValid || !currentAdminPassword}>
