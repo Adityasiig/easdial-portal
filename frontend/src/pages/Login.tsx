@@ -10,6 +10,7 @@ export function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -60,7 +61,12 @@ export function Login() {
           </label>
           <label>
             <span>Password</span>
-            <input type="password" value={password} autoComplete="current-password" placeholder="Enter password" onChange={(e) => setPassword(e.target.value)} required />
+            <span className="auth-password-field">
+              <input type={showPassword ? 'text' : 'password'} value={password} autoComplete="current-password" placeholder="Enter password" onChange={(e) => setPassword(e.target.value)} required />
+              <button type="button" className="password-toggle" onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? 'Hide password' : 'Show password'}>
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
+            </span>
           </label>
           <button className="btn btn-primary auth-submit" disabled={busy}><span>{busy ? 'Signing in…' : 'Enter workspace'}</span><b aria-hidden="true">→</b></button>
         </form>

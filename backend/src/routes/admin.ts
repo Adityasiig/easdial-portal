@@ -1,10 +1,10 @@
 import type { FastifyInstance } from 'fastify';
-import { createUserSchema, updateUserSchema } from '../schemas/auth.js';
+import { createUserSchema, updateAdminAccountSchema, updateUserSchema } from '../schemas/auth.js';
 import type { AuthService } from '../services/authService.js';
 import type { AccountStore } from '../services/accountStore.js';
 import { requireAdmin } from '../middleware/auth.js';
 import { getSwitchClient } from '../adapters/peeredge/index.js';
-import { BadRequest } from '../lib/errors.js';
+import { BadRequest, Unauthorized } from '../lib/errors.js';
 
 export async function adminRoutes(
   app: FastifyInstance,
@@ -18,6 +18,24 @@ export async function adminRoutes(
 
   // Users.
   app.get('/admin/users', async () => accounts.list());
+
+  app.patch('/admin/account', async (req) => {
+    const input = updateAdminAccountSchema.parse(req.body);
+    const account = req.account!;
+    if (!(await accounts.verifyPassword(account, input.currentPassword))) {
+      throw Unauthorized('Current password is incorrect');
+    }
+    try {
+      return {
+        user: await accounts.update(account.id, { email: input.email, password: input.password }),
+      };
+    } catch (err) {
+      if (err instanceof Error && err.message === 'email_exists') {
+        throw BadRequest('An account with that email already exists', 'email_exists');
+      }
+      throw err;
+    }
+  });
 
   app.post('/admin/users', async (req, reply) => {
     const input = createUserSchema.parse(req.body);

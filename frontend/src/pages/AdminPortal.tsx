@@ -8,7 +8,7 @@ const errorMessage = (error: unknown, fallback: string) =>
 const RELATIONSHIP_SYNC_MS = 180_000;
 
 export function AdminPortal() {
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const [users, setUsers] = useState<SessionUser[]>([]);
   const [relationships, setRelationships] = useState<RelationshipRef[]>([]);
   const [upstream, setUpstream] = useState<UpstreamHealth | null>(null);
@@ -22,9 +22,14 @@ export function AdminPortal() {
   const [busy, setBusy] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<SessionUser | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [adminEmail, setAdminEmail] = useState(user?.email ?? '');
+  const [currentAdminPassword, setCurrentAdminPassword] = useState('');
+  const [newAdminPassword, setNewAdminPassword] = useState('');
+  const [accountBusy, setAccountBusy] = useState(false);
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const passwordValid = password.length >= 8;
+  const adminEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(adminEmail.trim());
 
   async function loadUsers() {
     setLoadingUsers(true);
@@ -109,6 +114,45 @@ export function AdminPortal() {
     }
   }
 
+  async function onUpdateAdminAccount(event: FormEvent) {
+    event.preventDefault();
+    setError(null);
+    setNotice(null);
+    if (!adminEmailValid) {
+      setError('Enter a valid administrator email address.');
+      return;
+    }
+    if (!currentAdminPassword) {
+      setError('Enter your current administrator password.');
+      return;
+    }
+    if (newAdminPassword && newAdminPassword.length < 8) {
+      setError('The new password must be at least 8 characters.');
+      return;
+    }
+    const emailChanged = adminEmail.trim().toLowerCase() !== user?.email?.toLowerCase();
+    if (!emailChanged && !newAdminPassword) {
+      setError('Enter a new email or password to save changes.');
+      return;
+    }
+    setAccountBusy(true);
+    try {
+      await api.admin.updateAccount({
+        currentPassword: currentAdminPassword,
+        ...(emailChanged ? { email: adminEmail.trim() } : {}),
+        ...(newAdminPassword ? { password: newAdminPassword } : {}),
+      });
+      await refreshUser();
+      setCurrentAdminPassword('');
+      setNewAdminPassword('');
+      setNotice('Administrator account updated successfully.');
+    } catch (accountError) {
+      setError(errorMessage(accountError, 'Unable to update the administrator account.'));
+    } finally {
+      setAccountBusy(false);
+    }
+  }
+
   async function confirmDelete() {
     if (!pendingDelete) return;
     setDeleting(true);
@@ -173,6 +217,36 @@ export function AdminPortal() {
             Demo data is active. Customer reports will use generated records until the live Peeredge source is configured.
           </div>
         )}
+
+        <section className="admin-neu-panel admin-account-panel">
+          <div className="admin-section-head">
+            <div>
+              <span className="admin-section-kicker">Security</span>
+              <h2>Administrator account</h2>
+              <p>Update the email and password used to access this console.</p>
+            </div>
+          </div>
+          <form className="admin-account-form" onSubmit={onUpdateAdminAccount}>
+            <label className="admin-field">
+              <span>Administrator email</span>
+              <input type="email" value={adminEmail} autoComplete="username" onChange={(event) => setAdminEmail(event.target.value)} required />
+              <small className="field-help">This becomes the next sign-in email.</small>
+            </label>
+            <label className="admin-field">
+              <span>Current password</span>
+              <input type="password" value={currentAdminPassword} autoComplete="current-password" onChange={(event) => setCurrentAdminPassword(event.target.value)} required />
+              <small className="field-help">Required to confirm this change.</small>
+            </label>
+            <label className="admin-field">
+              <span>New password <em>(optional)</em></span>
+              <input type="password" value={newAdminPassword} autoComplete="new-password" minLength={8} placeholder="Leave blank to keep it" onChange={(event) => setNewAdminPassword(event.target.value)} />
+              <small className="field-help">Use at least 8 characters.</small>
+            </label>
+            <button className="admin-create-button admin-account-save" disabled={accountBusy || !adminEmailValid || !currentAdminPassword}>
+              {accountBusy ? 'Saving account...' : 'Save account changes'}
+            </button>
+          </form>
+        </section>
 
         <section className="admin-metrics" aria-label="Portal account summary">
           <article className="admin-metric admin-metric-primary">

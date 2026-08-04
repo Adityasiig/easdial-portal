@@ -279,6 +279,8 @@ export const api = {
   admin: {
     relationships: () => request<RelationshipRef[]>('/admin/relationships'),
     users: () => request<SessionUser[]>('/admin/users'),
+    updateAccount: (input: { currentPassword: string; email?: string; password?: string }) =>
+      request<{ user: SessionUser }>('/admin/account', { method: 'PATCH', body: JSON.stringify(input) }),
     createUser: (input: { email: string; password: string; relationshipId: string; relationshipName: string }) =>
       request<{ user: SessionUser }>('/admin/users', { method: 'POST', body: JSON.stringify(input) }),
     updateUser: (id: string, patch: { password?: string; relationshipId?: string; relationshipName?: string }) =>

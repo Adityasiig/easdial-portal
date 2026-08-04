@@ -161,19 +161,25 @@ export class AccountStore {
 
   async update(
     id: string,
-    patch: { password?: string; relationshipId?: string | null; relationshipName?: string | null },
+    patch: { email?: string; password?: string; relationshipId?: string | null; relationshipName?: string | null },
   ): Promise<PublicAccount> {
     const account = this.byId.get(id);
     if (!account) throw new Error('not_found');
+    if (patch.email !== undefined) {
+      const email = patch.email.trim().toLowerCase();
+      const existing = this.findByEmail(email);
+      if (existing && existing.id !== account.id) throw new Error('email_exists');
+      account.email = email;
+    }
     if (patch.password) account.passwordHash = await bcrypt.hash(patch.password, BCRYPT_COST);
     if (patch.relationshipId !== undefined) account.relationshipId = patch.relationshipId;
     if (patch.relationshipName !== undefined) account.relationshipName = patch.relationshipName;
     if (this.pool) {
       await this.pool.query(
         `UPDATE portal_accounts
-         SET password_hash = $2, relationship_id = $3, relationship_name = $4, updated_at = now()
+         SET email = $2, password_hash = $3, relationship_id = $4, relationship_name = $5, updated_at = now()
          WHERE id = $1`,
-        [account.id, account.passwordHash, account.relationshipId, account.relationshipName],
+        [account.id, account.email, account.passwordHash, account.relationshipId, account.relationshipName],
       );
     }
     return toPublic(account);

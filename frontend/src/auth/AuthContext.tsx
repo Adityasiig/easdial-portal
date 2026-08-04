@@ -5,6 +5,7 @@ interface AuthState {
   user: SessionUser | null;
   ready: boolean;
   login: (email: string, password: string) => Promise<SessionUser>;
+  refreshUser: () => Promise<SessionUser | null>;
   logout: () => void;
 }
 
@@ -40,6 +41,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(u);
         setReady(true);
         return u;
+      },
+      async refreshUser() {
+        try {
+          const { user: refreshed } = await api.me();
+          setUser(refreshed);
+          return refreshed;
+        } catch {
+          return null;
+        }
       },
       logout() {
         void api.logout().catch(() => undefined);

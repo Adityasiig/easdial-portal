@@ -25,6 +25,40 @@ test('admin-created customer is scoped, functional, and revocable', async () => 
     assert.equal(admin.user.role, 'admin');
     const adminHeaders = { authorization: `Bearer ${admin.token}` };
 
+    const wrongCurrentPassword = await app.inject({
+      method: 'PATCH',
+      url: '/admin/account',
+      headers: adminHeaders,
+      payload: { currentPassword: 'wrong-current-password', email: 'admin-renamed@easdial.test' },
+    });
+    assert.equal(wrongCurrentPassword.statusCode, 401);
+
+    const accountUpdate = await app.inject({
+      method: 'PATCH',
+      url: '/admin/account',
+      headers: adminHeaders,
+      payload: {
+        currentPassword: 'Admin-Test-Password!',
+        email: 'admin-renamed@easdial.test',
+        password: 'Admin-Renamed-Password!',
+      },
+    });
+    assert.equal(accountUpdate.statusCode, 200);
+    assert.equal(accountUpdate.json<{ user: { email: string } }>().user.email, 'admin-renamed@easdial.test');
+
+    const oldAdminLogin = await app.inject({
+      method: 'POST',
+      url: '/auth/login',
+      payload: { email: 'admin@easdial.test', password: 'Admin-Test-Password!' },
+    });
+    assert.equal(oldAdminLogin.statusCode, 401);
+    const renamedAdminLogin = await app.inject({
+      method: 'POST',
+      url: '/auth/login',
+      payload: { email: 'admin-renamed@easdial.test', password: 'Admin-Renamed-Password!' },
+    });
+    assert.equal(renamedAdminLogin.statusCode, 200);
+
     const relationshipsResponse = await app.inject({
       method: 'GET',
       url: '/admin/relationships',

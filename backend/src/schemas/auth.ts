@@ -18,6 +18,14 @@ export const updateUserSchema = z.object({
   relationshipName: z.string().min(1).optional(),
 });
 
+export const updateAdminAccountSchema = z.object({
+  currentPassword: z.string().min(1),
+  email: z.string().email().optional(),
+  password: z.string().min(8, 'Password must be at least 8 characters').optional(),
+}).refine((value) => value.email !== undefined || value.password !== undefined, {
+  message: 'Provide a new email or password',
+});
+
 export const metricsQuerySchema = z.object({
   direction: z.enum(['termination', 'origination']).default('termination'),
   metric: z.enum(['minutes', 'attempts', 'ports', 'favorite_ports', 'cps', 'profit']).default('minutes'),
