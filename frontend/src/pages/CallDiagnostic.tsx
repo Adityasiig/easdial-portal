@@ -67,6 +67,7 @@ export function CallDiagnostic() {
 
   const direction: Direction = top === 'Origination' ? 'origination' : 'termination';
   const isCdrTab = top === 'Termination' || top === 'Origination';
+  const selectedTrunk = filters?.customerTrunkGroups.find((group) => group.id === customerTrunkGroupId);
 
   useEffect(() => {
     if (!isCdrTab) return;
@@ -81,6 +82,8 @@ export function CallDiagnostic() {
       setFilters({ ...scoped, locations: options.locations });
       setLocation(nextLocation);
       setCustomerTrunkGroupId('');
+      setRows(null);
+      setGenerated(false);
     }).catch((err) => active && setError(err.message));
     return () => { active = false; };
   }, [direction, isCdrTab]);
@@ -88,6 +91,8 @@ export function CallDiagnostic() {
   const changeLocation = async (nextLocation: string) => {
     setLocation(nextLocation);
     setCustomerTrunkGroupId('');
+    setRows(null);
+    setGenerated(false);
     setFilterBusy(true);
     try {
       const scoped = await api.cdrFilters(direction, nextLocation);
@@ -135,7 +140,10 @@ export function CallDiagnostic() {
       setError('Choose a valid GMT date range before generating the report.');
       return;
     }
-    const customer = filters?.customerTrunkGroups.find((group) => group.id === customerTrunkGroupId);
+    if (!customerTrunkGroupId || !selectedTrunk) {
+      setError('Select a customer trunk before generating the CDR report.');
+      return;
+    }
     setRows(null);
     setGenerated(true);
     setBusy(true);
@@ -147,7 +155,7 @@ export function CallDiagnostic() {
         endTime: toIso(endTime),
         location: location || undefined,
         customerTrunkGroupId: customerTrunkGroupId || undefined,
-        customerTrunkGroupLabel: customer?.label,
+        customerTrunkGroupLabel: selectedTrunk.label,
         ani: ani.trim() || undefined,
         dnis: dnis.trim() || undefined,
         status: nextStatus,
@@ -223,8 +231,8 @@ export function CallDiagnostic() {
         <div className="cdr-workspace">
           <section className="panel cdr-query-panel" aria-label="CDR report filters">
             <div className="cdr-panel-heading">
-              <div><h2>Search call records</h2><p>Build a scoped report using GMT. Customer and vendor trunks are filtered independently.</p></div>
-              <span className="scope-chip">Customer scoped</span>
+              <div><h2>Search call records</h2><p>Select one customer trunk to generate a focused CDR report in GMT.</p></div>
+              <span className="scope-chip">Trunk required</span>
             </div>
 
             <div className="cdr-range-row">
@@ -251,8 +259,13 @@ export function CallDiagnostic() {
                 </select>
               </Field>
               <Field label="Customer trunk" className="cdr-compact-field">
-                <select className="control-select" aria-label="Customer trunk" value={customerTrunkGroupId} onChange={(event) => setCustomerTrunkGroupId(event.target.value)} disabled={!filters || filterBusy}>
-                  <option value="">All customer trunks</option>
+                <select className="control-select" aria-label="Customer trunk" value={customerTrunkGroupId} onChange={(event) => {
+                  setCustomerTrunkGroupId(event.target.value);
+                  setRows(null);
+                  setGenerated(false);
+                  setError(null);
+                }} disabled={!filters || filterBusy || filters.customerTrunkGroups.length === 0}>
+                  <option value="">Select a customer trunk</option>
                   {filters?.customerTrunkGroups.map((group) => <option key={group.id} value={group.id}>{group.label}</option>)}
                 </select>
               </Field>
@@ -266,14 +279,14 @@ export function CallDiagnostic() {
               </div>
               <div className="toolbar-actions">
                 <button className="btn btn-ghost btn-sm" type="button" onClick={reset}>Reset</button>
-                <button className="btn btn-primary btn-sm" type="button" onClick={() => void runReport()} disabled={busy}><RefreshIcon />{busy ? 'Generating…' : 'Generate report'}</button>
+                <button className="btn btn-primary btn-sm" type="button" onClick={() => void runReport()} disabled={busy || filterBusy || !selectedTrunk}><RefreshIcon />{busy ? 'Generating…' : 'Generate report'}</button>
               </div>
             </div>
           </section>
 
           <section className="panel table-panel cdr-results-panel">
             <div className="cdr-results-head">
-              <div><h2>Call records</h2><p>{generated ? `${filtered?.length ?? 0} matching records` : 'Generate a report to view call details'}</p></div>
+              <div><h2>Call records</h2><p>{generated ? `${filtered?.length ?? 0} records for ${selectedTrunk?.label ?? 'selected trunk'}` : 'Select a trunk and generate a report to view call details'}</p></div>
               <div className="cdr-results-tools">
                 <input className="search-input" aria-label="Search report results" placeholder="Search results" value={q} onChange={(event) => setQ(event.target.value)} />
                 <button className="btn btn-ghost btn-sm" onClick={exportCsv} disabled={!filtered?.length}>Export CSV</button>
@@ -281,7 +294,7 @@ export function CallDiagnostic() {
             </div>
             <div className="table-scroll cdr-table-scroll">
               <table className="report-table cdr-table">
-                <thead><tr><th>Date / Time</th><th>ANI</th><th>DNIS</th><th>LRN</th><th>Release</th><th>Cause</th><th className="num">Duration</th><th>Customer trunk</th><th>Juris</th><th className="num">Rate</th></tr></thead>
+                <thead><tr><th>Date / Time</th><th>ANI</th><th>DNIS</th><th>LRN</th><th>Release</th><th>Cause</th><th className="num">Duration</th><th>Trunk</th><th>Juris</th><th className="num">Rate</th></tr></thead>
                 <tbody>{visibleRows?.map((row, index) => <tr key={`${row.dateTime}-${row.ani}-${index}`}>
                   <td className="date-cell">{formatUtc(row.dateTime)}</td><td className="mono-cell">{row.ani || '—'}</td><td className="mono-cell">{row.dnis || '—'}</td><td className="mono-cell">{row.lrn || '—'}</td>
                   <td><span className={`release-pill ${row.duration > 0 ? 'ok' : 'failed'}`}>{row.releaseCode || '—'}</span></td><td>{row.releaseCause || '—'}</td><td className="num">{formatDuration(row.duration)}</td>
@@ -290,7 +303,7 @@ export function CallDiagnostic() {
               </table>
             </div>
             {generated && rows === null && !error && <div className="chart-skeleton compact-skeleton" />}
-            {(!generated || (filtered !== undefined && filtered.length === 0)) && <EmptyState title={generated ? 'No calls matched' : 'No report generated'} description={generated ? 'Change one or more filters and generate the report again.' : 'Choose the required filters above and generate a scoped CDR report.'} />}
+            {(!generated || (filtered !== undefined && filtered.length === 0)) && <EmptyState title={generated ? 'No calls matched' : 'Select a trunk'} description={generated ? 'Change one or more filters and generate the report again.' : 'Choose a customer trunk above to enable Generate report.'} />}
             {Boolean(filtered?.length) && <div className="cdr-pagination"><span>Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered?.length ?? 0)} of {filtered?.length}</span><div><button disabled={page === 1} onClick={() => setPage((current) => current - 1)}>Previous</button><span>Page {page} of {pageCount}</span><button disabled={page === pageCount} onClick={() => setPage((current) => current + 1)}>Next</button></div></div>}
           </section>
         </div>
@@ -304,8 +317,8 @@ function Field({ label, children, className = '' }: { label: string; children: R
 }
 
 function TrunkCell({ value }: { value: string }) {
-  const [relationship, ...rest] = value.split(' / ');
-  return <span className="trunk-cell"><span>{relationship || '—'}</span>{rest.length > 0 && <small>{rest.join(' / ')}</small>}</span>;
+  const parts = value.split(' / ').filter(Boolean);
+  return <span className="trunk-cell"><span>{parts[parts.length - 1] || '—'}</span></span>;
 }
 
 function formatDuration(seconds: number): string {

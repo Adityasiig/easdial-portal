@@ -41,7 +41,7 @@ export const cdrQuerySchema = z.object({
   startTime: z.string().datetime(),
   endTime: z.string().datetime(),
   location: z.string().trim().max(80).optional(),
-  customerTrunkGroupId: z.string().trim().max(120).optional(),
+  customerTrunkGroupId: z.string().trim().min(1, 'Select a customer trunk before generating CDRs').max(120),
   customerTrunkGroupLabel: z.string().trim().max(240).optional(),
   vendorTrunkGroupId: z.string().trim().max(120).optional(),
   vendorTrunkGroupLabel: z.string().trim().max(240).optional(),

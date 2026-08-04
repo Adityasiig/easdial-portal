@@ -166,6 +166,15 @@ test('admin-created customer is scoped, functional, and revocable', async () => 
       location: cdrFilters.locations[0],
       customerTrunkGroupId: cdrFilters.customerTrunkGroups[0].id,
     });
+    const relationshipOnlyQuery = new URLSearchParams(query);
+    relationshipOnlyQuery.delete('customerTrunkGroupId');
+    const relationshipOnlyResponse = await app.inject({
+      method: 'GET',
+      url: `/metrics/cdrs?${relationshipOnlyQuery}`,
+      headers: customerHeaders,
+    });
+    assert.equal(relationshipOnlyResponse.statusCode, 400);
+
     const cdrResponse = await app.inject({ method: 'GET', url: `/metrics/cdrs?${query}`, headers: customerHeaders });
     assert.equal(cdrResponse.statusCode, 200);
     const cdrRows = cdrResponse.json<Array<{ customerTrunk: string; vendorTrunk: string }>>();
